@@ -167,3 +167,21 @@ Stage Summary:
 - Photo attach (the product's core golden path) is fixed and verified end to end: 88/88 tests, live curl + browser checks green.
 - main on GitHub now has: upload endpoint, PWA foundation (icons/manifest/metadata), uploads excluded from git, .env untracked.
 - Railway checklist from previous task stands unchanged (health path /api, build cmd needs db:generate, volume /data for SQLite). Note: uploaded photos land in public/uploads -> on Railway the volume story must cover it or files reset on redeploy; flag for deploy prep (either mount trick or move uploads to the volume path in uploadsDir()).
+
+---
+Task ID: 18
+Agent: Z.ai Code (main agent)
+Task: Railway deploy readiness ("Lets do it") — uploads on the persistent volume, boot auto-seed, deploy docs; direct push to main.
+
+Work Log:
+- Extracted src/lib/uploads.ts: uploadsDir() priority = $UPLOADS_DIR -> /data/uploads (volume auto-detect) -> <cwd>/public/uploads (dev/preview) -> standalone public -> root fallback; contentTypeFor() helper. Upload route now uses it.
+- New GET /uploads/[file] serve route (src/app/uploads/[file]/route.ts): basename + strict name regex (traversal-safe), streams from uploadsDir(), correct content-type, immutable cache-control. Needed because on a volume, photos are NOT under the ephemeral public/ dir; verified Next falls through to the route when public/ misses (curl /uploads/doesnotexist-abc.png returns the route's JSON 404 in dev).
+- Boot auto-seed: prisma/seed.ts got a CLI guard (argv[1] endsWith prisma/seed.ts) + exported seedDemo() that owns disconnect; new src/lib/seed-demo.ts seedDemoIfEmpty() (EK_AUTO_SEED=0 kill switch, try/catch so boot never crashes); src/instrumentation.ts register() runs it once on nodejs boot. Verified no-op against the populated dev DB (seeded:false).
+- Tests: +4 (serve route 200/immutable headers/404/traversal/non-image ext) -> 92/92 across 9 files. eslint + tsc clean. Live regression: fresh upload still 200 image/png via native public serving.
+- README: test count 92, new "Deploying (Railway)" section (build/start/health/volume/vars/auto-seed/backups).
+- Pushed b634c09..48aeacb to origin/main (PAT extraheader, no PR per user preference).
+
+Stage Summary:
+- Repo is Railway-ready: clone -> deploy works with README's settings; photos survive redeploys via /data; fresh DB self-seeds demo data at boot.
+- Deploy checklist for the user unchanged (console steps from Task 17 message); env vars needed: DATABASE_URL, HOSTNAME only.
+- Reminders outstanding: user revokes PAT after merging/deploys; later: custom domain, Capacitor wrapper pointing at the Railway URL.
