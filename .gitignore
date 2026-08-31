@@ -56,3 +56,6 @@ server.log
 db/*.db
 db/*.db-wal
 db/*.db-shm
+# user-uploaded photos (runtime data, never in git)
+public/uploads/*
+!public/uploads/.gitkeep
