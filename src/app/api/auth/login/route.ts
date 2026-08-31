@@ -16,8 +16,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Wrong email or password.' }, { status: 401 })
     }
 
-    const res = NextResponse.json({ user: { id: user.id, name: user.name, email: user.email } })
-    res.cookies.set(SESSION_COOKIE, createToken(user.id), sessionCookieOptions())
+    // Token goes in the body as well as the cookie: the cookie is dropped in
+    // cross-origin iframes (preview panel), the bearer token is not.
+    const token = createToken(user.id)
+    const res = NextResponse.json({
+      user: { id: user.id, name: user.name, email: user.email },
+      token,
+    })
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return res
   } catch (err) {
     console.error('login error', err)

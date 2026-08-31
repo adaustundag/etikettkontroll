@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'crypto'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { db } from '@/lib/db'
 
 const SECRET = process.env.AUTH_SECRET || 'etikettkontroll-dev-secret'
@@ -43,10 +43,19 @@ export function sessionCookieOptions() {
   }
 }
 
-/** Resolve the signed-in user from the session cookie. Route handlers only. */
+/**
+ * Resolve the signed-in user. Reads the `Authorization: Bearer` header first
+ * (required inside cross-origin preview iframes where cookies are dropped),
+ * then falls back to the httpOnly session cookie. Route handlers only.
+ */
 export async function getSessionUser() {
-  const jar = await cookies()
-  const token = jar.get(SESSION_COOKIE)?.value
+  const h = await headers()
+  const authz = h.get('authorization')
+  let token = authz?.startsWith('Bearer ') ? authz.slice(7).trim() : undefined
+  if (!token) {
+    const jar = await cookies()
+    token = jar.get(SESSION_COOKIE)?.value
+  }
   if (!token) return null
   const payload = verifyToken(token)
   if (!payload) return null

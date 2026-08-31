@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { api } from '@/lib/api'
+import { api, setToken } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import { toast } from 'sonner'
 import type { MeDTO } from '@/lib/types'
@@ -42,15 +42,18 @@ export function AuthDialog({
     setError(null)
     setBusy(true)
     try {
-      if (mode === 'signin') {
-        await api.post('/api/auth/login', { email, password })
-      } else {
-        await api.post('/api/auth/register', { name, email, password })
-      }
-      const me = await api.get<MeDTO>('/api/auth/me')
+      // Persist the bearer token before /me — the session cookie is dropped
+      // inside the preview iframe, the token is what keeps us signed in.
+      const res = mode === 'signin'
+        ? await api.post<{ token?: string }>('/api/auth/login', { email, password })
+        : await api.post<{ token?: string }>('/api/auth/register', { name, email, password })
+      if (res?.token) setToken(res.token)
+
+      const me = await api.get<MeDTO | null>('/api/auth/me')
+      if (!me) throw new Error(t('common.errorGeneric'))
       onAuthed(me)
       onOpenChange(false)
-      if (me) toast.success(t('auth.welcomeToast', { name: me.name }))
+      toast.success(t('auth.welcomeToast', { name: me.name }))
       setPassword('')
     } catch (err) {
       setError(err instanceof Error ? err.message : t('common.errorGeneric'))

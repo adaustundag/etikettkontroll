@@ -21,3 +21,22 @@ Stage Summary:
 - Demo logins (password demo1234): maja@ / erik@ (Moderators), anna@ (Trusted), gustav@ (Contributor), linnea@ (Newcomer) @etikettkontroll.se. Queue ships with 2 pending changes to review.
 - Key decisions: auto-published revisions keep status auto_approved but count as published everywhere (PUBLISHED_STATUSES); trust counts superseded revisions as positive; single-page hash routing to honor the single-visible-route sandbox constraint; custom scrypt+HMAC auth instead of NextAuth for reliability.
 - i18n is dictionary-based (src/lib/i18n.tsx) — Swedish pivot = flip localStorage key; all UI copy exists in both languages.
+
+---
+Task ID: 10
+Agent: Z.ai Code (main agent)
+Task: Fix "login doesn't work" — user reported sign-in had no effect.
+
+Work Log:
+- Diagnosed via dev.log: POST /api/auth/login returned 200 and GET /api/auth/me returned 200 across 3 user retries, meaning credentials were accepted but the session never stuck.
+- Root cause: the app runs inside the preview panel's cross-origin iframe; modern browsers block third-party cookies there, so the SameSite=Lax httpOnly session cookie set on login was silently dropped. /api/auth/me then returned null (HTTP 200) and the UI stayed signed-out. Cookie-only auth can never work in that context.
+- Fix (dual-token auth, server keeps accepting both):
+  - src/lib/api.ts: added ek_token store (localStorage with sessionStorage + in-memory fallbacks, all try/catch-guarded) and setToken/getToken/clearToken exports; apiFetch now attaches Authorization: Bearer <token> to every request.
+  - src/lib/auth.ts: getSessionUser() reads the Authorization bearer header first (via next/headers headers()), falls back to the session cookie.
+  - login/register routes: response body now includes { user, token } alongside the unchanged Set-Cookie.
+  - auth-dialog: persists token before calling /me; added a hard error if /me returns null instead of silently closing the dialog.
+  - page.tsx: signOut clears the token; refreshMe clears a stale/expired token when /me returns null.
+- Verification: lint clean; curl proved bearer path (login → token → /me returns user) and cookie fallback both work; agent-browser E2E: signed in as maja@ (header switched to avatar), then cookies clear + reload → still signed in via token (exact simulation of the iframe scenario), profile dropdown correct, sign out returns to signed-out state; register endpoint curl-verified to return token (throwaway user deleted afterwards); dev.log clean, all 200s.
+
+Stage Summary:
+- Login now works in the preview iframe AND in normal first-party browsing. Auth = bearer token (iframe-proof, primary) + httpOnly SameSite=Lax cookie (first-party fallback). 30-day expiry unchanged. No schema changes; no breaking API changes (all authed routes go through getSessionUser).

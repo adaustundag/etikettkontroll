@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { I18nProvider } from '@/lib/i18n'
 import { useHashRoute, type Route } from '@/lib/router'
-import { api, onDataChanged } from '@/lib/api'
+import { api, getToken, onDataChanged, setToken } from '@/lib/api'
 import { Header } from '@/components/ek/header'
 import { Footer } from '@/components/ek/footer'
 import { AuthDialog } from '@/components/ek/auth-dialog'
@@ -27,8 +27,11 @@ function AppShell() {
 
   const refreshMe = useCallback(() => {
     api
-      .get<MeDTO>('/api/auth/me')
-      .then((m) => setMe(m ?? null))
+      .get<MeDTO | null>('/api/auth/me')
+      .then((m) => {
+        if (!m && getToken()) setToken(null) // stale/expired token — clean up
+        setMe(m ?? null)
+      })
       .catch(() => setMe(null))
       .finally(() => setMeLoaded(true))
   }, [])
@@ -39,6 +42,7 @@ function AppShell() {
   }, [refreshMe])
 
   const signOut = async () => {
+    setToken(null)
     await api.post('/api/auth/logout')
     setMe(null)
     refreshMe()
