@@ -199,3 +199,21 @@ Work Log:
 
 Stage Summary:
 - 4 quick-fix items unblock safe production: set AUTH_SECRET, randomBytes for magic tokens, gate devLink to non-production, drop email from public profile. Then a validation-bounds pass + rate limits + review-tx-tightening as PR-scale work.
+
+---
+Task ID: 20
+Agent: Z.ai Code (main agent)
+Task: (1) Verify aborted session left no changes; (2) hardening PR — postMessage origin, review-tx tightening, validation bounds, rate limits; (3) deploy config one-liners — connection_limit=1, security headers.
+
+Work Log:
+- Abort check: only stray auto-checkpoint 7ba1e2e (tool artifact, no source) → dropped; main restored to de9d523 (= origin/main). No credentials stored, so push/PR deferred until the user re-supplies the PAT.
+- C1 postMessage origin: oauth.ts finishSession now postMessages the token with the app origin as targetOrigin (was '*'); auth-dialog.tsx receiver ignores cross-origin messages.
+- C2 review-tx tightening: revision (status/counts/already-reviewed) is now read inside the same $transaction that writes; finalize uses conditional updateMany (status='pending') guards; P2002 on review.create maps to clean 409; ReviewAbort class maps tx aborts to HTTP statuses; +30/min per-user review rate limit (rate-limit.ts introduced here).
+- C3 validation bounds: submitRevision now bounds name 2–200, brand 1–120, ingredients 5–8000, servingSize ≤60, nutrition 0–10000, photo fields must match ^/uploads/[a-z0-9-]+\.(jpe?g|png|webp)$; login/register/magic emails ≤254, password ≤200 (pre-scrypt cap), name ≤60; new lib/payload.ts readBoundedJson() adds byte caps (login/register 64KB, magic 8KB, comments 16KB, submit 256KB, ocr 12MB) → 413.
+- C4 rate limits: new lib/rate-limit.ts — bounded sliding-window Map (10k-bucket eviction), clientIp() from XFF, enforceRateLimit() → 429 + Retry-After; wired into login 10/min, register 10/min, magic-request 10/min, magic-verify 30/min, submit 20/min, review 30/min, comments 10/min, upload 30/min, ocr 20/min (per-IP anonymous, per-user authed); disabled under NODE_ENV=test and EK_RATE_LIMIT=0. Also: magic-link tokens now randomBytes(32) (was Math.random).
+- C5 config: auth.ts secret() fails closed in production without AUTH_SECRET (was public fallback); next.config.ts headers() — always nosniff/Referrer-Policy/HSTS, production-only X-Frame-Options SAMEORIGIN + CSP frame-ancestors + Permissions-Policy camera=(self) (dev preview iframe is cross-origin; FRAME_POLICY=off override); README deploy one-liners (DATABASE_URL +?connection_limit=1, AUTH_SECRET=openssl rand -hex 32); .env.example added (.gitignore negated).
+- Verified: bun run lint clean; bun run test 92/92 (337 expects); browser golden path — sign-in as demo moderator, queue approve → toast "published", queue 2→1, feed shows published version 3 "this minute"; mobile+desktop screenshots clean; no runtime errors in dev.log. NOTE: an environment process flips the checkout back to main; branch commits are unaffected.
+- All work lives on branch chore/hardening-pass-1 (4 commits: 00d08fc, feb02c7, 9a01bfa, ebf8bc3); main untouched at origin/main until push. Out of scope (next up): gate devLink to non-production, drop public email field on users/[id], oauth account-linking re-confirmation.
+
+Stage Summary:
+- Hardening PR ready on chore/hardening-pass-1 (19 files, +413/−97); needs PAT to push + open PR (no stored credentials). Deploy one-liners documented in README: DATABASE_URL=file:/data/db/custom.db?connection_limit=1 and AUTH_SECRET=<openssl rand -hex 32>.
