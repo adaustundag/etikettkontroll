@@ -148,3 +148,22 @@ Stage Summary:
 - Demo data fully restored and browser-verified end to end.
 - App is now installable as a PWA: on a phone, open the site -> "Add to Home Screen" (iOS) or install prompt (Android/Chrome). Icons/manifest/theme complete; service worker (offline shell) intentionally deferred.
 - Path to native app (agreed direction): PWA now -> Capacitor wrapper later; wrapper must point at a hosted origin because API+Prisma/SQLite cannot ship inside the app bundle; barcode scanner engine seam (createEngine) is ready for a Capacitor plugin engine; Sign in with Apple at iOS packaging (Task 13 note).
+
+---
+Task ID: 17
+Agent: Z.ai Code (main agent)
+Task: Implement the missing /api/upload route (photo-attach golden path) and push straight to main (user: "just push it no need to do PR").
+
+Work Log:
+- Contract source: tests/api/upload.test.ts (auth 401, "No file" 400, mime whitelist msg "JPEG, PNG or WebP", 8 MB cap, { url: "/uploads/<name>.<ext>" }, bytes persisted under public/uploads) + client api.upload()/ImageUpload (canvas-resizes to JPEG client-side, accept heic->jpeg fallback).
+- Implemented src/app/api/upload/route.ts: getSessionUser 401 guard, formData parse, MIME->ext map (jpeg/png/webp), 8 MB cap on decoded buffer, generated filename (timestamp+uuid, never client name), uploadsDir() resolves <cwd>/public/uploads in dev and .next/standalone/public/uploads in standalone prod, mkdir -p, writeFile, JSON { url }.
+- Suite: 88/88 pass (82 prior + upload's tests; the phantom "1 fail/1 error" from the missing module is gone). README's "88 tests" is accurate again — no edit needed. eslint + tsc clean.
+- Live E2E via curl: login maja -> bearer upload of a real generated PNG -> 200 { url } -> GET url serves 200 image/png; anonymous upload -> 401.
+- Browser E2E (agent-browser): sign-in -> Add product -> set file on hidden input -> Front slot shows uploaded preview + remove button; zero page errors. Client resize produced a .jpg on disk as designed.
+- Privacy/bug hygiene: public/uploads contents were tracked in git (2 stale test jpgs committed by sandbox checkpoints) and not ignored. Added public/uploads/* + !.gitkeep to .gitignore, git rm --cached the stale files, cleaned disk.
+- Git: PR #1 was already merged by user (origin advanced). Local had 2 sandbox checkpoint commits (mode-bit-only changes) that conflicted with origin's .env deletion during rebase; resolved by accepting deletion (git rm --cached .env), rebase completed, pushed 5878256..2eb011a to main with the PAT extraheader (no PR per user instruction).
+
+Stage Summary:
+- Photo attach (the product's core golden path) is fixed and verified end to end: 88/88 tests, live curl + browser checks green.
+- main on GitHub now has: upload endpoint, PWA foundation (icons/manifest/metadata), uploads excluded from git, .env untracked.
+- Railway checklist from previous task stands unchanged (health path /api, build cmd needs db:generate, volume /data for SQLite). Note: uploaded photos land in public/uploads -> on Railway the volume story must cover it or files reset on redeploy; flag for deploy prep (either mount trick or move uploads to the volume path in uploadsDir()).
