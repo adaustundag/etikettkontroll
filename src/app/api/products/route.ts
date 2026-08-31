@@ -6,31 +6,66 @@ import type { SubmitPayload, SubmitResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/products?q= — search by barcode or name/brand
+// GET /api/products?q= — search by barcode or name/brand (case-insensitive)
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') || '').trim()
   const take = 20
 
-  const where = q
-    ? /^\d{8,14}$/.test(q)
-      ? { OR: [{ barcode: q }, { barcode: { contains: q } }, { name: { contains: q } }, { brand: { contains: q } }] }
-      : { OR: [{ name: { contains: q } }, { brand: { contains: q } }] }
-    : undefined
+  let products: Array<{
+    id: string
+    barcode: string
+    name: string
+    brand: string
+    createdAt: Date
+    updatedAt: Date
+    revisions: { frontImage: string | null }[]
+    _count: { revisions: number }
+  }>
 
-  const products = await db.product.findMany({
-    where,
-    orderBy: { updatedAt: 'desc' },
-    take,
-    include: {
-      revisions: {
-        where: { status: { in: ['approved', 'auto_approved'] } },
-        orderBy: { version: 'desc' },
-        take: 1,
-        select: { frontImage: true },
+  if (q) {
+    // Prisma's `contains` is case-sensitive on SQLite, so match with LIKE
+    // (case-insensitive for ASCII) and then re-hydrate with relations in the
+    // same order. % and _ in the query are treated literally via ESCAPE.
+    const like = `%${q.replace(/[%_\\]/g, '')}%`
+    const rows = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM Product
+      WHERE barcode LIKE ${like} OR name LIKE ${like} OR brand LIKE ${like}
+      ORDER BY updatedAt DESC
+      LIMIT ${take}`
+    const ids = rows.map((r) => r.id)
+    const found = await db.product.findMany({
+      where: { id: { in: ids } },
+      include: {
+        revisions: {
+          where: { status: { in: ['approved', 'auto_approved'] } },
+          orderBy: { version: 'desc' },
+          take: 1,
+          select: { frontImage: true },
+        },
+        _count: { select: { revisions: { where: { status: { in: ['approved', 'auto_approved'] } } } } },
       },
-      _count: { select: { revisions: { where: { status: { in: ['approved', 'auto_approved'] } } } } },
-    },
-  })
+    })
+    const byId = new Map(found.map((p) => [p.id, p]))
+    products = []
+    for (const id of ids) {
+      const p = byId.get(id)
+      if (p) products.push(p)
+    }
+  } else {
+    products = await db.product.findMany({
+      orderBy: { updatedAt: 'desc' },
+      take,
+      include: {
+        revisions: {
+          where: { status: { in: ['approved', 'auto_approved'] } },
+          orderBy: { version: 'desc' },
+          take: 1,
+          select: { frontImage: true },
+        },
+        _count: { select: { revisions: { where: { status: { in: ['approved', 'auto_approved'] } } } } },
+      },
+    })
+  }
 
   return NextResponse.json(
     products.map((p) => ({

@@ -92,3 +92,22 @@ Work Log:
 
 Stage Summary:
 - Sign-in surface now: password (demo accounts unchanged), Google, Facebook, email magic link. OAuth goes live when user registers apps and sets env keys; magic link emails once RESEND_API_KEY is set (dev mode shows the link inline until then). One session system throughout (bearer token + cookie, iframe-safe). Setup guide handed to user: Google Cloud Console + Meta developer app redirect URIs = {origin}/api/auth/oauth/{provider}/callback. Klarna not possible (no identity product); Sign in with Apple recommended at iOS packaging; BankID at Swedish launch.
+
+---
+Task ID: 14
+Agent: Z.ai Code (main agent)
+Task: Unit-test every API endpoint ("Let's do unit tests on all end points. Make sure they work as expected."), plus clarify that Google/Facebook sign-in needs real OAuth apps before it can go live.
+
+Work Log:
+- Mapped all 18 routes (auth register/login/logout/me/providers, oauth start+callback, magic request+verify, products search/detail/comments/submit, queue, revisions review, users, stats, upload, ocr, health) by reading every handler + lib (auth, oauth, trust, revisions, password).
+- Built a bun:test harness (tests/): setup.ts forces DATABASE_URL to an isolated db/test.db, mock.module('next/headers') provides a controllable request scope (bearer header + cookie jar with set/get, so OAuth state round-trips work), req() builds NextRequest, sessionCookie() parses Set-Cookie; fixtures.ts wipes tables in FK order and derives Option-B levels via the real computeTrust (karma + finalized history).
+- 8 suites / 88 tests: auth (validation, dup email 409, passwordless 401, bearer+cookie+expired/garbage tokens), OAuth (unconfigured 400, PKCE authorize URL + state cookie, callback happy paths for Google+Facebook with stubbed token/userinfo endpoints, consent-cancel redirect, forged state 400, replay 400, identity reuse, email linking preserving password, popup postMessage HTML, unverified-email 400), magic links (devLink, 429 throttle, single-use, expiry, pretty-name registration, existing-account sign-in, popup HTML), products (case-insensitive search, digit-substring search, literal SQL wildcards, detail DTO with barcodes, comments validation), submissions (L0 pending 2-approval, no-change 400, L1 single-field auto-publish + supersede + karma +2, L1 multi-field 1-approval, L2 instant, "42,5"→42.5 coercion, barcode whitespace strip), review (queue ordering/current diff, all guards: 401/400/403-level/403-self/404/409-finalized/409-duplicate, two-approval publish flow end-to-end, L3 merge, supersede, reject paths incl. karma floor at 0), users/stats/health, upload (auth, mime whitelist, 8 MB cap, disk write + cleanup), OCR (401/400 + real vision call on a sharp-generated label image asserting exact extracted values: 520 kcal, 7 g protein, 0.25 g salt).
+- BUG FOUND & FIXED: product search was case-sensitive on SQLite (Prisma `contains` without mode support) — "oatly" returned nothing. Rewrote GET /api/products?q= to a parameterized LIKE raw query (wildcards stripped) with re-hydration preserving order; verified live via curl and browser (lowercase "oatly" now returns the product in the UI).
+- Housekeeping: db.ts silences prisma query logs under NODE_ENV=test; package.json gained `bun run test` (fresh db/test.db + prisma db push + bun test).
+- Verified: 88/88 pass in ~2.5s; eslint clean; tsc --noEmit clean (tests type-checked via tests/bun.d.ts → bun-types); dev.log healthy; agent-browser golden path (search → product page) renders with no console errors.
+- GitHub status checked per user request to "push this in": repo has NO remote and the sandbox has no gh CLI or credentials — the earlier commits are local-only. Blocked on user providing a repo URL + token (or gh auth). All work is committed locally so a push is a single command once credentials exist.
+
+Stage Summary:
+- Every API endpoint now has automated coverage: 88 tests / 8 files via `bun run test`, isolated DB, no dev-data pollution, ~2.5 s runtime. One real bug found and fixed (case-insensitive product search).
+- Social logins (Google/Facebook) are implemented but dormant: they activate only when GOOGLE_/FACEBOOK_ client id+secret env keys are set — user cannot log in with them in the preview because no OAuth apps exist yet (expected; setup guide delivered in Task 13).
+- Awaiting user input: GitHub remote URL + personal access token (or `gh auth login`) to actually push.
