@@ -16,7 +16,8 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String
-  passwordHash String
+  // null for accounts that only use social/magic-link sign-in
+  passwordHash String?
   karma        Int      @default(0)
   // cached Option-B trust level (write-back whenever computeTrust runs)
   trustLevel   Int      @default(0)
@@ -27,6 +28,32 @@ model User {
   reviews     Review[]
   comments    ProductComment[]
   karmaEvents KarmaEvent[]
+  identities  ExternalIdentity[]
+}
+
+// One row per social login connected to an account (google | facebook).
+// A local password account can add social identities later; an OAuth-first
+// account can set a password later — both without changing the User row.
+model ExternalIdentity {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // google | facebook
+  provider   String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, providerId])
+}
+
+// Short-lived single-use tokens for passwordless email sign-in.
+model MagicToken {
+  id        String    @id @default(cuid())
+  email     String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
 }
 
 model Product {

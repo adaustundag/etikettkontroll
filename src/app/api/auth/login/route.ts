@@ -12,7 +12,14 @@ export async function POST(req: NextRequest) {
     const password = body.password || ''
 
     const user = await db.user.findUnique({ where: { email } })
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    const hash = user?.passwordHash ?? null
+    if (user && !hash) {
+      return NextResponse.json(
+        { error: 'This account signs in with Google, Facebook or an email link — no password is set.' },
+        { status: 401 },
+      )
+    }
+    if (!user || !hash || !verifyPassword(password, hash)) {
       return NextResponse.json({ error: 'Wrong email or password.' }, { status: 401 })
     }
 

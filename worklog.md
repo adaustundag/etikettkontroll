@@ -74,3 +74,21 @@ Work Log:
 Stage Summary:
 - Camera scanning live behind a platform adapter: native BarcodeDetector first, ZXing fallback, native-plugin slot ready for Capacitor packaging. Honest limit: real-camera decode (golden path) needs a physical device / Open-in-New-Tab — headless can only verify lifecycle + error paths.
 - Answer given to user: Option A still recommended for app packaging; packaging plan = PWA now, Capacitor later, swap in native scanner engine, bearer-token auth already WebView-safe.
+
+---
+Task ID: 13
+Agent: Z.ai Code (main agent)
+Task: Social + passwordless sign-in — Google, Facebook (OAuth) and email magic links, integrated with the existing HMAC session system. (Klarna ruled out earlier: no third-party identity product exists.)
+
+Work Log:
+- Schema: added ExternalIdentity (unique [provider, providerId], cascade delete) and MagicToken (unique tokenHash, 15-min TTL, usedAt); User.passwordHash now nullable for social/passwordless accounts. Pushed with db:push; required dev-server restart (old client was cached in memory).
+- src/lib/oauth.ts: provider registry (Google OIDC + PKCE S256; Facebook v19 code flow), state cookie (ek_ox_{provider}, httpOnly, 10 min, per-provider), buildAuthorizeUrl/ exchangeCodeForProfile (Google userinfo w/ verified-email requirement; FB /me fields id,name,email), resolveOAuthUser (login → link-by-verified-email → register, race-safe), finishSession (popup: postMessage token to opener + close, with no-opener fallback location.replace('/'); redirect: set cookie + redirect '/'). Providers read GOOGLE_CLIENT_ID/SECRET, FACEBOOK_CLIENT_ID/SECRET; magic email delivery uses RESEND_API_KEY/MAIL_FROM.
+- Routes: /api/auth/providers (configured flags), /api/auth/oauth/[provider]/start (PKCE + state + popup flag; 400 with clear message when unconfigured), .../callback (state check, code exchange, consent-cancel redirect), /api/auth/magic/request (email validation, 30s per-email throttle, one live token per email, dev mode returns devLink when no mail key), /api/auth/magic/verify (single-use, expiry, auto-register pretty-name user).
+- Login route: friendly 401 for accounts without passwordHash.
+- AuthDialog rebuilt: tabs + divider "or continue with" + Google/Facebook/Email-link buttons; magic inline form with sent-state and dev-mode link button; window.addEventListener('message') completion path (postMessage token → setToken → /me → welcome toast); popup-blocked and unconfigured messages; providers flags fetched on open (deferred setTimeout for set-state-in-effect rule); reset-on-close via onOpenChange wrapper.
+- i18n: auth.orContinue/providerGoogle/providerFacebook/emailLink/magicPrompt/magicSend/magicSent/magicDevTitle/magicDevOpen/notConfigured/popupBlocked in EN + SV.
+- Fixed: SQLite createMany has no skipDuplicates (typed never) — replaced with .catch(() => undefined); passwordHash narrowing in login route via explicit hash const.
+- Verified: tsc + lint clean; curl: providers flags, unconfigured start → 400, magic E2E both popup (200 + cookie + /me = new user) and redirect (307 → / with cookie) variants, token reuse → 400, passwordless password attempt → friendly 401, password regression OK; browser E2E: dialog renders all buttons, Google click shows graceful not-configured error, magic request → dev link → popup auto-closes → main page signed in (avatar visible); test users cleaned; dev.log clean.
+
+Stage Summary:
+- Sign-in surface now: password (demo accounts unchanged), Google, Facebook, email magic link. OAuth goes live when user registers apps and sets env keys; magic link emails once RESEND_API_KEY is set (dev mode shows the link inline until then). One session system throughout (bearer token + cookie, iframe-safe). Setup guide handed to user: Google Cloud Console + Meta developer app redirect URIs = {origin}/api/auth/oauth/{provider}/callback. Klarna not possible (no identity product); Sign in with Apple recommended at iOS packaging; BankID at Swedish launch.

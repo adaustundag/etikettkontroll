@@ -262,6 +262,19 @@ const en = {
   'auth.welcomeToast': 'Welcome, {name}!',
   'auth.signedOutToast': 'Signed out. Read access stays free, of course.',
 
+  // social + passwordless sign-in
+  'auth.orContinue': 'or continue with',
+  'auth.providerGoogle': 'Google',
+  'auth.providerFacebook': 'Facebook',
+  'auth.emailLink': 'Email link',
+  'auth.magicPrompt': 'We’ll email you a one-time sign-in link — no password needed.',
+  'auth.magicSend': 'Send link',
+  'auth.magicSent': 'Check your inbox — the link works once and is valid for 15 minutes.',
+  'auth.magicDevTitle': 'Dev mode (no mail provider configured):',
+  'auth.magicDevOpen': 'Open your sign-in link',
+  'auth.notConfigured': '{provider} sign-in is not configured on the server yet.',
+  'auth.popupBlocked': 'The sign-in window was blocked — please allow popups for this site.',
+
   // field labels for diffs
   'field.name': 'Name',
   'field.brand': 'Brand',
@@ -537,6 +550,19 @@ const sv: Record<TKey, string> = {
   'auth.demoL1': 'Bidragsgivare',
   'auth.welcomeToast': 'Välkommen, {name}!',
   'auth.signedOutToast': 'Utloggad. Läsåtkomst förblir gratis, förstås.',
+
+  // social + passwordless sign-in
+  'auth.orContinue': 'eller fortsätt med',
+  'auth.providerGoogle': 'Google',
+  'auth.providerFacebook': 'Facebook',
+  'auth.emailLink': 'Mejl-länk',
+  'auth.magicPrompt': 'Vi mejlar dig en engångslänk för inloggning – inget lösenord behövs.',
+  'auth.magicSend': 'Skicka länk',
+  'auth.magicSent': 'Kolla din inkorg – länken fungerar en gång och gäller i 15 minuter.',
+  'auth.magicDevTitle': 'Dev-läge (ingen e-postleverantör är konfigurerad):',
+  'auth.magicDevOpen': 'Öppna din inloggningslänk',
+  'auth.notConfigured': '{provider}-inloggning är inte konfigurerad på servern än.',
+  'auth.popupBlocked': 'Inloggningsfönstret blockerades – tillåt popup-fönster för webbplatsen.',
 
   // field labels for diffs
   'field.name': 'Namn',
