@@ -2,14 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  // Brute-force bound: 10 attempts per minute per IP.
+  const limited = enforceRateLimit(req, 'login', 10, 60_000)
+  if (limited) return limited
+
   try {
-    const body = (await req.json()) as { email?: string; password?: string }
+    const body = (await readBoundedJson<{ email?: string; password?: string }>(req, 64 * 1024)) ?? {}
     const email = (body.email || '').trim().toLowerCase()
     const password = body.password || ''
+    // Cap inputs before they reach scrypt/DB — scrypt cost scales with input length.
+    if (email.length > 254 || password.length > 200) {
+      return NextResponse.json({ error: 'Email or password is too long.' }, { status: 400 })
+    }
 
     const user = await db.user.findUnique({ where: { email } })
     const hash = user?.passwordHash ?? null
@@ -33,6 +43,9 @@ export async function POST(req: NextRequest) {
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return res
   } catch (err) {
+    if (err instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
+    }
     console.error('login error', err)
     return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 })
   }

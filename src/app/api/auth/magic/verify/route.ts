@@ -3,15 +3,20 @@ import { createHash } from 'crypto'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { finishSession } from '@/lib/oauth'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
 // GET /api/auth/magic/verify?token=...[&popup=1] — consume the link, sign in
 export async function GET(req: NextRequest) {
   const url = req.nextUrl
+  // Token-guessing bound: 30/min per IP (tokens are 256-bit, this is belt & suspenders).
+  const limited = enforceRateLimit(req, 'magic-verify', 30, 60_000)
+  if (limited) return limited
+
   try {
     const token = url.searchParams.get('token') || ''
-    if (!token) return NextResponse.json({ error: 'Missing token.' }, { status: 400 })
+    if (!token || token.length > 200) return NextResponse.json({ error: 'Missing token.' }, { status: 400 })
 
     const record = await db.magicToken.findUnique({
       where: { tokenHash: createHash('sha256').update(token).digest('hex') },

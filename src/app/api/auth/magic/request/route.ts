@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createHash } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { readBoundedJson } from '@/lib/payload'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,10 +42,14 @@ async function sendEmail(to: string, link: string): Promise<boolean> {
 
 // POST /api/auth/magic/request { email, popup? } — create a one-time sign-in link
 export async function POST(req: NextRequest) {
+  // Email-sending + token cost: 10/min per IP (plus the per-email 30s guard below).
+  const limited = enforceRateLimit(req, 'magic-request', 10, 60_000)
+  if (limited) return limited
+
   try {
-    const body = (await req.json()) as { email?: string; popup?: boolean }
+    const body = (await readBoundedJson<{ email?: string; popup?: boolean }>(req, 8 * 1024)) ?? {}
     const email = (body.email || '').trim().toLowerCase()
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
     }
 
@@ -53,7 +59,8 @@ export async function POST(req: NextRequest) {
     }
     recent.set(email, Date.now())
 
-    const token = Buffer.from(new Uint8Array(32).map(() => Math.floor(Math.random() * 256))).toString('base64url')
+    // CSPRNG token — Math.random() is predictable and must never guard a login.
+    const token = randomBytes(32).toString('base64url')
     await db.magicToken.deleteMany({ where: { email, usedAt: null } }) // one live link per email
     await db.magicToken.create({
       data: {

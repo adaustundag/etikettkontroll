@@ -110,9 +110,32 @@ export async function submitRevision(user: { id: string; name: string }, payload
     throw new SubmitError('Barcode must be 8–14 digits (EAN-13 is standard on groceries).')
   }
   const values = extractLabelValues(payload)
-  if (values.name.length < 2) throw new SubmitError('Product name is required.')
-  if (values.brand.length < 1) throw new SubmitError('Brand is required.')
-  if (values.ingredients.length < 5) throw new SubmitError('The ingredient list is required — that is the heart of this database.')
+  if (values.name.length < 2 || values.name.length > 200) {
+    throw new SubmitError('Product name must be 2–200 characters.')
+  }
+  if (values.brand.length < 1 || values.brand.length > 120) {
+    throw new SubmitError('Brand must be 1–120 characters.')
+  }
+  if (values.ingredients.length < 5 || values.ingredients.length > 8000) {
+    throw new SubmitError(
+      'The ingredient list is required (5–8000 characters) — that is the heart of this database.',
+    )
+  }
+  if (values.servingSize && values.servingSize.length > 60) {
+    throw new SubmitError('Serving size is too long (max 60 characters).')
+  }
+  for (const n of [values.calories, values.protein, values.carbs, values.sugars, values.fat, values.salt]) {
+    if (n !== null && (n < 0 || n > 10000)) {
+      throw new SubmitError('Nutrition values must be numbers between 0 and 10000.')
+    }
+  }
+  // Photo fields are filled by /api/upload, which returns /uploads/<name> —
+  // anything else (data URLs, remote hosts, traversal) is rejected here.
+  for (const img of [values.frontImage, values.ingredientsImage, values.nutritionImage]) {
+    if (img && !/^\/uploads\/[a-z0-9-]+\.(jpe?g|png|webp)$/.test(img)) {
+      throw new SubmitError('Label photos must be uploaded through the app first.')
+    }
+  }
 
   const trust = await computeTrust(user.id)
   const product = await db.product.findUnique({ where: { barcode } })

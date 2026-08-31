@@ -3,6 +3,7 @@ import path from 'path'
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
+import { enforceRateLimit } from '@/lib/rate-limit'
 import { uploadsDir } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
@@ -21,6 +22,10 @@ export async function POST(req: NextRequest) {
   if (!me) {
     return NextResponse.json({ error: 'Sign in to upload photos.' }, { status: 401 })
   }
+
+  // Storage/IO flood bound: 30 uploads per minute per user.
+  const limited = enforceRateLimit(req, 'upload', 30, 60_000, me.id)
+  if (limited) return limited
 
   const form = await req.formData().catch(() => null)
   const file = form?.get('file')

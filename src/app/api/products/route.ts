@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { SubmitError, submitRevision } from '@/lib/revisions'
+import { enforceRateLimit } from '@/lib/rate-limit'
+import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
 import type { SubmitPayload, SubmitResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -85,11 +87,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const user = await getSessionUser()
   if (!user) return NextResponse.json({ error: 'Sign in to submit products.' }, { status: 401 })
+
+  // Submission flood bound: 20 per minute per user.
+  const limited = enforceRateLimit(req, 'submit', 20, 60_000, user.id)
+  if (limited) return limited
+
   try {
-    const payload = (await req.json()) as SubmitPayload
+    const payload = (await readBoundedJson<SubmitPayload>(req, 256 * 1024)) ?? ({} as SubmitPayload)
     const result: SubmitResult = await submitRevision(user, payload)
     return NextResponse.json(result)
   } catch (err) {
+    if (err instanceof PayloadTooLargeError) {
+      return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
+    }
     if (err instanceof SubmitError) return NextResponse.json({ error: err.message }, { status: 400 })
     console.error('submit error', err)
     return NextResponse.json({ error: 'Submission failed. Please try again.' }, { status: 500 })
