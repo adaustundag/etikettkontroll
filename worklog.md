@@ -185,3 +185,17 @@ Stage Summary:
 - Repo is Railway-ready: clone -> deploy works with README's settings; photos survive redeploys via /data; fresh DB self-seeds demo data at boot.
 - Deploy checklist for the user unchanged (console steps from Task 17 message); env vars needed: DATABASE_URL, HOSTNAME only.
 - Reminders outstanding: user revokes PAT after merging/deploys; later: custom domain, Capacitor wrapper pointing at the Railway URL.
+
+---
+Task ID: 19
+Agent: Z.ai Code (main agent)
+Task: Security & robustness audit — weakspots, loopholes, deadlocks (read-only, no code per user).
+
+Work Log:
+- Read: lib/auth, lib/password, lib/trust, lib/revisions (publish+submit), review route, products GET/POST, users/[id], login/register, oauth.ts (resolve+finishSession popup HTML), magic request/verify, comments, ocr, schema.prisma; grepped for raw SQL/XSS sinks/transactions/middleware.
+- Verified solid: scrypt+timingSafeEqual passwords; HMAC-signed bearer tokens w/ timing-safe verify; httpOnly+Lax+secure cookie; $transaction around submit+publish; DB-level uniques (revisionId+reviewerId, productId+version) guarding review integrity; self-review ban; magic tokens sha256-hashed, single-use, 15-min TTL, one-live-per-email; parameterized LIKE with wildcard stripping; uploads traversal-safe; email_verified enforced for Google.
+- FINDINGS (severity-ranked): CRITICAL deploy-config: AUTH_SECRET falls back to public hardcoded 'etikettkontroll-dev-secret' -> forgeable session tokens if unset in prod (NOT in Railway checklist yet). HIGH: magic-link token generated with Math.random() (non-CSPRNG); devLink returned in production when RESEND_API_KEY unset (auth bypass foot-gun); users/[id] leaks email publicly. MEDIUM: popup postMessage targetOrigin '*' (token to malicious opener phishing); review route reads revision outside tx -> lost-update on approvedCount + possible double karma; no payload size/field-length bounds (name/brand/ingredients/image URLs unbounded, numerics unbounded incl. negatives, barcode lacks GS1 checksum server-side); no rate limits on login/register/ocr (cost); oauth email-linking to password accounts without re-confirmation. LOW: no security headers/middleware; no indices beyond uniques; computeTrust writes on public GET; per-process throttle Map unbounded; scryptSync event-loop block; no body size caps; bearer tokens non-revocable pre-expiry.
+- DEADLOCK verdict: no classic deadlocks (single $transaction per request, consistent ordering, no nesting). SQLite realities instead: single-writer serialization, deferred-tx lock upgrade can throw SQLITE_BUSY under write contention (mitigated by Prisma busy_timeout default); recommend connection_limit=1 in DATABASE_URL.
+
+Stage Summary:
+- 4 quick-fix items unblock safe production: set AUTH_SECRET, randomBytes for magic tokens, gate devLink to non-production, drop email from public profile. Then a validation-bounds pass + rate limits + review-tx-tightening as PR-scale work.
