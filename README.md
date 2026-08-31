@@ -29,10 +29,20 @@ Demo accounts (local development only): `maja@etikettkontroll.se`, `erik@etikett
 
 ## Tests
 
-Endpoint test suite (88 tests) covering auth (cookie + Bearer token), karma permission gates, product and revision flows, the review queue, and input validation:
+Endpoint test suite (92 tests) covering auth (cookie + Bearer token), karma permission gates, product and revision flows, the review queue, photo upload/serving, and input validation:
 
 ```bash
 bun run test
 ```
+
+## Deploying (Railway)
+
+- **Build command:** `bun run db:generate && bun run build`
+- **Start command:** `NODE_ENV=production bun .next/standalone/server.js`
+- **Health check path:** `/api`
+- **Volume:** mount at `/data` — the SQLite database and uploaded photos both live there
+- **Variables:** `DATABASE_URL=file:/data/db/custom.db`, `HOSTNAME=0.0.0.0`
+- First boot **auto-seeds the demo dataset** when the database is empty (disable with `EK_AUTO_SEED=0`)
+- Backups: the database is a single file under `/data/db` — snapshot the volume
 
 > Demo credentials are for local development only — never use them in production.

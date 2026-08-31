@@ -1,9 +1,9 @@
-import { existsSync } from 'fs'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
+import { uploadsDir } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,20 +15,6 @@ const MIME_EXT: Record<string, string> = {
 }
 
 const MAX_BYTES = 8 * 1024 * 1024
-
-/**
- * Resolve the uploads directory for the current runtime:
- * - dev / preview:  <cwd>/public/uploads (Next serves public/ from the project root)
- * - standalone prod: .next/standalone/public/uploads (build script copies public there)
- */
-function uploadsDir(): string {
-  const cwd = process.cwd()
-  const root = path.join(cwd, 'public', 'uploads')
-  if (existsSync(root)) return root
-  const standalone = path.join(cwd, '.next', 'standalone', 'public', 'uploads')
-  if (existsSync(standalone)) return standalone
-  return root
-}
 
 export async function POST(req: NextRequest) {
   const me = await getSessionUser()

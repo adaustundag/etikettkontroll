@@ -327,9 +327,22 @@ async function main() {
   console.log('Seed complete:', counts)
 }
 
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(() => db.$disconnect())
+// Auto-run only as a CLI (`bun prisma/seed.ts`). When imported for boot-time
+// auto-seed, seedDemo() below drives main() and owns the connection.
+if (process.argv[1]?.replace(/\\/g, '/').endsWith('prisma/seed.ts')) {
+  main()
+    .catch((e) => {
+      console.error(e)
+      process.exit(1)
+    })
+    .finally(() => db.$disconnect())
+}
+
+/** Importable entry point — disconnects the seed client when done. */
+export async function seedDemo() {
+  try {
+    await main()
+  } finally {
+    await db.$disconnect()
+  }
+}
