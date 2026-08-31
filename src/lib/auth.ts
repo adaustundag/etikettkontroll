@@ -2,14 +2,30 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { cookies, headers } from 'next/headers'
 import { db } from '@/lib/db'
 
-const SECRET = process.env.AUTH_SECRET || 'etikettkontroll-dev-secret'
+const DEV_SECRET = 'etikettkontroll-dev-secret'
+
 export const SESSION_COOKIE = 'ek_session'
 const SESSION_TTL_MS = 30 * 24 * 3600 * 1000 // 30 days
 
 type SessionPayload = { uid: string; exp: number }
 
+/**
+ * Session signing secret. In production AUTH_SECRET is REQUIRED — falling back
+ * to the public dev secret would make every session token forgeable, so we
+ * fail closed instead (audit CRITICAL: hardcoded fallback). Generate with:
+ *   openssl rand -hex 32
+ */
+function secret(): string {
+  const explicit = process.env.AUTH_SECRET
+  if (explicit) return explicit
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('AUTH_SECRET is required in production. Generate one with: openssl rand -hex 32')
+  }
+  return DEV_SECRET
+}
+
 function sign(data: string): string {
-  return createHmac('sha256', SECRET).update(data).digest('base64url')
+  return createHmac('sha256', secret()).update(data).digest('base64url')
 }
 
 export function createToken(uid: string): string {

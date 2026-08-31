@@ -41,8 +41,12 @@ bun run test
 - **Start command:** `NODE_ENV=production bun .next/standalone/server.js`
 - **Health check path:** `/api`
 - **Volume:** mount at `/data` — the SQLite database and uploaded photos both live there
-- **Variables:** `DATABASE_URL=file:/data/db/custom.db`, `HOSTNAME=0.0.0.0`
+- **Variables (one-liners):**
+  - `DATABASE_URL=file:/data/db/custom.db?connection_limit=1` — `connection_limit=1` keeps a single SQLite writer connection, avoiding `SQLITE_BUSY` / "database is locked" errors when concurrent submits and reviews collide
+  - `AUTH_SECRET=<openssl rand -hex 32>` — **required in production**; sessions fail closed without it (prevents forgeable tokens from the public dev fallback)
+  - `HOSTNAME=0.0.0.0`
 - First boot **auto-seeds the demo dataset** when the database is empty (disable with `EK_AUTO_SEED=0`)
+- Security headers (nosniff, Referrer-Policy, HSTS; production also sends frame + camera policies) ship automatically via `next.config.ts` — no configuration needed
 - Backups: the database is a single file under `/data/db` — snapshot the volume
 
 > Demo credentials are for local development only — never use them in production.

@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -59,3 +60,4 @@ db/*.db-shm
 # user-uploaded photos (runtime data, never in git)
 public/uploads/*
 !public/uploads/.gitkeep
+tool-results/
