@@ -217,3 +217,18 @@ Work Log:
 
 Stage Summary:
 - Hardening PR ready on chore/hardening-pass-1 (19 files, +413/−97); needs PAT to push + open PR (no stored credentials). Deploy one-liners documented in README: DATABASE_URL=file:/data/db/custom.db?connection_limit=1 and AUTH_SECRET=<openssl rand -hex 32>.
+
+---
+Task ID: 20-b
+Agent: Z.ai Code (main agent)
+Task: Post-push thorough re-verification (user request) of everything shipped in the hardening series.
+
+Work Log:
+- Merged chore/hardening-pass-1 into main (rebase + ff, linear) and pushed de9d523..3e16c15 with user-supplied PAT (command-scoped, unset after; branch deleted; no credential traces).
+- Phase A static: eslint clean; bun test 92/92 (337 expects); bunx tsc --noEmit → 0 errors in src/ (4 pre-existing errors only in sandbox examples/ + skills/ scaffolding); AUTH_SECRET micro-tests: prod without AUTH_SECRET throws on createToken (fail-closed PASS), prod with secret roundtrips, dev fallback intact.
+- Phase B browser: sign-in via UI (anna), live search "kaviar", product detail (history 3 / discuss 2), queue approve with note → vote recorded (v3 1/2 pending; L2 votes count 1, queue hides voted items; header badge counts real pending — all by design), mobile iPhone-14 full-page screenshot clean, zero console errors.
+- Phase C scripted API suite (tool-results/ek-api-test.sh, 59 checks): register/login caps + 413s (70KB), duplicate 409, bad email 400, password 201 → 400 pre-scrypt; submit bounds (name 201, ingredients 8001, brand 121, calories −5/20000, remote + traversal image refs, bad barcode, anonymous 401); full review cycle newcomer→anna(L2, 1/2)→erik(L3 finalize) with double-review 409s, self-review 403, invalid verdict 400, review-comment 501 → 400; submitter +2 karma verified via public profile; comments 1/1001 → 400; upload anon 401, served PNG content-type, path-as-is traversal blocked, real /uploads ref accepted by submit whitelist; magic bad-email 400, dev devLink present, garbage token 400; headers nosniff/Referrer-Policy/HSTS on / and /uploads; 15-hit login burst → 429 + Retry-After. 58/59 in batch; 59th (300KB submit → 413) initially reported 400 due to a harness bug (--data-binary missing @), confirmed 413 manually and harness fixed.
+- Phase D: dev.log clean — no runtime errors; log shows 429s and products 413 served by the new guards. Rate-limit windows require ~60s drain between suite runs (login/register buckets share the no-XFF 'unknown' key locally).
+
+Stage Summary:
+- All hardening behavior verified live post-push: 59/59 API checks, 92/92 unit suite, UI golden paths + mobile clean, fail-closed AUTH_SECRET proven. Worklog commit is local-only (token not stored); push with next batch.
