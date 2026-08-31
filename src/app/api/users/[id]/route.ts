@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       orderBy: { createdAt: 'desc' },
       take: 30,
       include: {
-        product: { select: { barcode: true } },
+        // product (barcode) comes from revisionInclude
         ...revisionInclude,
       },
     }),

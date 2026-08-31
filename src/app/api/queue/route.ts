@@ -12,7 +12,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     take: 50,
     include: {
-      product: { select: { id: true, barcode: true, name: true, brand: true } },
+      // product (barcode) comes from revisionInclude
       ...revisionInclude,
     },
   })

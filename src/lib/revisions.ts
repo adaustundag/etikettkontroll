@@ -202,6 +202,7 @@ export async function submitRevision(user: { id: string; name: string }, payload
 export type RevisionWithRelations = ProductRevision & {
   submittedBy: { id: string; name: string; karma: number; trustLevel?: number }
   reviews: (ReviewWithReviewer)[]
+  product?: { barcode: string } | null
 }
 
 export type ReviewWithReviewer = {
@@ -228,6 +229,7 @@ export function mapRevision(r: RevisionWithRelations): RevisionDTO {
   return {
     id: r.id,
     productId: r.productId,
+    barcode: r.product?.barcode ?? '',
     version: r.version,
     status: r.status as RevisionStatus,
     name: r.name,
@@ -262,6 +264,7 @@ export function mapRevision(r: RevisionWithRelations): RevisionDTO {
 }
 
 export const revisionInclude = {
+  product: { select: { barcode: true } },
   submittedBy: { select: { id: true, name: true, karma: true, trustLevel: true } },
   reviews: {
     include: { reviewer: { select: { id: true, name: true, karma: true } } },

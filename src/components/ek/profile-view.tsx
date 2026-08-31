@@ -136,7 +136,7 @@ export function ProfileView({ userId, meId }: { userId: string; meId?: string })
               <button
                 type="button"
                 className="min-w-0 flex-1 text-left"
-                onClick={() => navigate(`product/${c.productId}`)}
+                onClick={() => navigate(`product/${c.barcode}`)}
               >
                 <p className="truncate text-sm font-medium hover:underline">
                   {c.name} <span className="text-muted-foreground">v{c.version}</span>

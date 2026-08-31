@@ -40,3 +40,19 @@ Work Log:
 
 Stage Summary:
 - Login now works in the preview iframe AND in normal first-party browsing. Auth = bearer token (iframe-proof, primary) + httpOnly SameSite=Lax cookie (first-party fallback). 30-day expiry unchanged. No schema changes; no breaking API changes (all authed routes go through getSessionUser).
+
+---
+Task ID: 11
+Agent: Z.ai Code (main agent)
+Task: (a) Bug report — demo review-queue products "not visible/found"; (b) propose (no code) camera barcode scanning.
+
+Work Log:
+- Root-caused the queue bug: RevisionDTO had no barcode field, so QueueCard rendered an invisible barcode line AND navigated via navigate(`product/${item.productId}`) — a Prisma CUID — while ProductView resolves route params as barcodes → /api/products/{cuid} → 404 "Product not found". Same bug in profile-view contributions link.
+- Fix: added barcode to RevisionDTO end-to-end (types.ts; revisions.ts RevisionWithRelations + mapRevision + revisionInclude now includes product.barcode); removed now-duplicate product includes in queue + users/[id] routes; queue-view and profile-view navigate by item.barcode / c.barcode.
+- Also fixed a pre-existing tsc error in api/ocr: SDK types require `model` for createVision but the runtime injects a default (verified live: OCR endpoint returns 200 + parsed JSON shape); cast body to CreateChatCompletionVisionBody with explanatory comment instead of guessing a model string.
+- Introduced `bunx tsc --noEmit` (scoped to src/) into the verification routine — ESLint is not type-aware, which is how the missing-field bug slipped through. Remaining tsc output is limited to pre-existing examples/ + skills/ noise outside the app.
+- Verified via curl (queue items now carry barcode) and agent-browser E2E: queue card title → product page renders fully (Wasa: barcode shown, pending-change banner, History (3), nutrition table); profile contribution → Kalles Kaviar page renders. Lint clean, dev.log clean.
+
+Stage Summary:
+- Queue → product and profile → product navigation now work; queue cards show the barcode again. Lesson: route params for product pages are barcodes (natural key) — never productId. tsc --noEmit is now part of the check suite.
+- Camera barcode scanning: PROPOSAL ONLY delivered to user (no code written), per request.

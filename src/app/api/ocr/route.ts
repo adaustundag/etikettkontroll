@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import ZAI from 'z-ai-web-dev-sdk'
+import ZAI, { type CreateChatCompletionVisionBody } from 'z-ai-web-dev-sdk'
 import { getSessionUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -47,18 +47,21 @@ export async function POST(req: NextRequest) {
     }
 
     const zai = await ZAI.create()
-    const response = await zai.chat.completions.createVision({
+    // The SDK runtime injects a default vision model when `model` is omitted
+    // (verified live); the published types incorrectly require it, so cast.
+    const visionBody = {
       messages: [
         {
-          role: 'user',
+          role: 'user' as const,
           content: [
-            { type: 'text', text: PROMPT },
-            { type: 'image_url', image_url: { url: image } },
+            { type: 'text' as const, text: PROMPT },
+            { type: 'image_url' as const, image_url: { url: image } },
           ],
         },
       ],
-      thinking: { type: 'disabled' },
-    })
+      thinking: { type: 'disabled' as const },
+    } as CreateChatCompletionVisionBody
+    const response = await zai.chat.completions.createVision(visionBody)
     const raw = response.choices[0]?.message?.content ?? ''
     const parsed = parseJsonLoose(raw)
     if (!parsed || (!parsed.ingredients && !parsed.nutrition)) {

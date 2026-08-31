@@ -88,7 +88,7 @@ function QueueCard({
           <button
             type="button"
             className="text-base font-semibold hover:underline"
-            onClick={() => navigate(`product/${item.productId}`)}
+            onClick={() => navigate(`product/${item.barcode}`)}
           >
             {item.name}
           </button>

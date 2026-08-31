@@ -37,6 +37,8 @@ export type ReviewDTO = {
 export type RevisionDTO = LabelValues & {
   id: string
   productId: string
+  /** Barcode of the parent product — canonical key for routing to the product page. */
+  barcode: string
   version: number
   status: RevisionStatus
   requiredApprovals: number
