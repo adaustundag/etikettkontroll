@@ -130,3 +130,21 @@ Stage Summary:
 - Token hygiene: command-scoped auth only, zero persistent traces; user advised to revoke the PAT after merging.
 - Going forward the PR workflow is live: branch → push → PR → merge in UI.
 - Note for next agents: social login IS implemented but dormant without GOOGLE_/FACEBOOK_ env keys (Task 13); endpoint suite runs via `bun run test` (88 tests, Task 14).
+
+---
+Task ID: 16
+Agent: Z.ai Code (main agent)
+Task: (a) explain PR review/merge to user, (b) restore vanished demo data, (c) start the app-side: PWA foundation.
+
+Work Log:
+- Explained PR flow: pushed changes live on branch chore/repo-hygiene; main gets them only after merging PR #1 in the GitHub UI (user had seen the branch files and thought the work was already "in").
+- Diagnosed empty DB: users/products/revisions all 0 in db/custom.db. Root cause: a table-wipe from Task 14 test development hit the dev DB before the isolated db/test.db harness was wired. Current suite cannot recur this (forced DATABASE_URL + rm only targets db/test.db).
+- Restored via `bun prisma/seed.ts` (idempotent wipe+recreate): 5 users, 7 products, 16 revisions, 7 reviews, 2 pending. Verified via prisma counts, /api/stats (products 7, contributors 5, pendingCount 2), and agent-browser: home renders, queue badge shows 2, sign-in as maja works (Bearer flow OK post-reseed), queue card shows Wasa v3 by Gustav Berg with salt diff 0.9->0.55 and approve/reject controls. Note: queue lives at hash route /#/queue, not /review.
+- PWA foundation: generated 1024px brand icon (white barcode + checkmark on emerald #059669 to match favicon.svg) via z-ai CLI; scripts/make-icons.ts cuts it with sharp into public/icons/{icon-192,icon-512,maskable-512 (content in 82% safe zone on sampled bg),apple-touch-icon (180)}. Learned: sharp applies resize BEFORE composite in a pipeline - composite at final size.
+- Added public/manifest.webmanifest (name EtikettKontroll, short_name Etikett, standalone, portrait, theme #059669, 3 icons incl. maskable) and wired layout.tsx metadata: manifest link, applicationName, appleWebApp, formatDetection, icons (svg+png+apple), viewport.themeColor.
+- Verified: all 5 PWA assets 200 with correct content-types; home HTML has manifest link + theme-color + apple-touch-icon; eslint clean; tsc clean (src); browser shows no console errors.
+
+Stage Summary:
+- Demo data fully restored and browser-verified end to end.
+- App is now installable as a PWA: on a phone, open the site -> "Add to Home Screen" (iOS) or install prompt (Android/Chrome). Icons/manifest/theme complete; service worker (offline shell) intentionally deferred.
+- Path to native app (agreed direction): PWA now -> Capacitor wrapper later; wrapper must point at a hosted origin because API+Prisma/SQLite cannot ship inside the app bundle; barcode scanner engine seam (createEngine) is ready for a Capacitor plugin engine; Sign in with Apple at iOS packaging (Task 13 note).

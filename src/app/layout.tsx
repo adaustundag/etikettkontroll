@@ -28,8 +28,23 @@ export const metadata: Metadata = {
     "livsmedel",
     "ingrediensförteckning",
   ],
+  applicationName: "EtikettKontroll",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.svg",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "EtikettKontroll",
+  },
+  formatDetection: {
+    telephone: false,
   },
 };
 
@@ -37,6 +52,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: "#059669",
 };
 
 export default function RootLayout({
