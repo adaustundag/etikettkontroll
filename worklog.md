@@ -1,0 +1,23 @@
+# Worklog
+
+---
+Task ID: 1-9
+Agent: Z.ai Code (main agent)
+Task: Build "EtikettKontroll" — a peer-reviewed grocery label database (OpenFoodFacts + revision control) per agreed design: Option B karma-gated review, cold start, login-to-submit, food-only v1, English-first UI with full Swedish i18n.
+
+Work Log:
+- Researched moderation models (Open Food Facts forum/wiki, MediaWiki FlaggedRevs, Stack Overflow suggested edits, Gerrit) via web-search + page-reader skills; synthesized Option B design that the user approved.
+- Name due diligence: conflict-checked EtikettKontrol(l)/Granska/Rätt Etikett; user chose "EtikettKontroll" (correct Swedish spelling).
+- Task 2: Replaced prisma/schema.prisma with EtikettKontroll model: User (karma, cached trustLevel), Product (barcode key, denormalized name/brand), ProductRevision (immutable snapshot + workflow state: pending/approved/auto_approved/rejected/superseded, requiredApprovals, changedFields JSON), Review (unique per reviewer+revision), ProductComment, KarmaEvent. Pushed with db:push.
+- Task 3: libs — password.ts (scrypt), auth.ts (HMAC-signed httpOnly cookie sessions), trust.ts (Option B levels: L0<30k, L1≥30k, L2≥100k+85%+3 finalized, L3≥250k+90%+5; superseded revisions count as positive contributions), revisions.ts (submission engine: L2+ auto-publish, L1 single-field auto-publish, else 1–2 approvals; publish supersedes previous approved), label.ts (pure diff/value helpers), diff.ts (word-level LCS), allergens.ts (EN+SV keyword detection incl. compounds like "torskrom"), i18n.tsx (full EN+SV dictionaries, ~180 keys), router.ts (hash router via useSyncExternalStore, SSR-safe).
+- Task 4: API routes — auth (register/login/logout/me), products (search + create-or-revise in one POST), products/[barcode] (detail), products/[barcode]/comments, queue, revisions/[id]/review (L2+ gate, self-review block, double-vote block, L3 merge-on-approve and single-reject-finalize, karma awards), users/[id], stats, upload (FormData → public/uploads), ocr (z-ai-web-dev-sdk createVision; graceful 502).
+- Task 5: App shell — sticky header (wordmark, nav + pending badge, EN/SV toggle, theme toggle, avatar menu), sticky footer (min-h-screen flex + mt-auto, safe-area padding), hash-based SPA routing (only / visible per sandbox rule), framer-motion view transitions, sonner toasts.
+- Task 6: Views — Home (hero search w/ live results + add-barcode CTA, stats, how-it-works, activity feed), Product (photos w/ zoom, allergen-highlighted ingredients, nutrition table, revision timeline with word-diffs + review comments, discuss), Submit wizard (barcode → edit-mode detection + prefill, 3 photo slots w/ client resize + camera capture, AI auto-fill from ingredients photo, diff preview, trust-note, success states), Review queue (L2+ gate w/ progress, diff cards, approve/reject + comment, J/K/A/R keyboard shortcuts), Profile (karma, trust progress, contribution stats), Auth dialog (sign in/up + one-click demo accounts, password demo1234).
+- Task 7: prisma/seed.ts — 5 demo users across L0–L3, 7 Swedish groceries (Kalles Kaviar, Oatly Barista, Wasa, Marabou, Garant, Arla, Felix) with valid EAN-13s, approved histories + moderator correction revisions, 2 pending revisions (0/2 newcomer, 0/1 contributor), 3 comments.
+- Task 8: Browser self-verification (agent-browser) golden paths — fixed: SSR window crash in hash router (useSyncExternalStore), hydration mismatch on deep links, auto_approved not treated as published (detail/queue/search/publish-supersede), trust decay from superseded revisions, FieldDiffRow null-image render, ean13 seed bug, react-hooks lint (set-state-in-effect ×3), allergen compound words. Verified end-to-end: register → submit (0/2 pending) → L2 approve (1/2 stays) → L3 merge (publishes, +2 karma) → L3 single reject finalizes (−1 karma, floor 0) → keyboard approve, OCR endpoint, uploads, EN/SV toggle, dark/light, mobile 390px, footer sticky/pushed. Final lint clean, dev.log clean.
+
+Stage Summary:
+- Production-ready v1 of EtikettKontroll running on port 3000 (dev). All code in src/lib, src/app/api, src/components/ek; seed: `bun prisma/seed.ts`.
+- Demo logins (password demo1234): maja@ / erik@ (Moderators), anna@ (Trusted), gustav@ (Contributor), linnea@ (Newcomer) @etikettkontroll.se. Queue ships with 2 pending changes to review.
+- Key decisions: auto-published revisions keep status auto_approved but count as published everywhere (PUBLISHED_STATUSES); trust counts superseded revisions as positive; single-page hash routing to honor the single-visible-route sandbox constraint; custom scrypt+HMAC auth instead of NextAuth for reliability.
+- i18n is dictionary-based (src/lib/i18n.tsx) — Swedish pivot = flip localStorage key; all UI copy exists in both languages.

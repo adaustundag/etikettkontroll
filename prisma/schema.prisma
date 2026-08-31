@@ -1,8 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// EtikettKontroll — peer-reviewed product label database
+// Revision-control data model: products are identified by barcode,
+// every change is an immutable ProductRevision that goes through
+// the karma-gated review workflow (Option B).
 
 generator client {
   provider = "prisma-client-js"
@@ -14,19 +13,105 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  karma        Int      @default(0)
+  // cached Option-B trust level (write-back whenever computeTrust runs)
+  trustLevel   Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  revisions   ProductRevision[]
+  reviews     Review[]
+  comments    ProductComment[]
+  karmaEvents KarmaEvent[]
 }
 
-model Post {
+model Product {
   id        String   @id @default(cuid())
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  barcode   String   @unique
+  // denormalized from the currently approved revision (search + list views)
+  name      String
+  brand     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  revisions ProductRevision[]
+  comments  ProductComment[]
+}
+
+model ProductRevision {
+  id                String    @id @default(cuid())
+  productId         String
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  version           Int
+  submittedById     String
+  submittedBy       User      @relation(fields: [submittedById], references: [id])
+
+  // ---- immutable snapshot of the label data ----
+  name              String
+  brand             String
+  ingredients       String
+  servingSize       String?
+  calories          Float? // kcal per 100 g
+  protein           Float? // g per 100 g
+  carbs             Float? // g per 100 g
+  sugars            Float? // g per 100 g
+  fat               Float? // g per 100 g
+  salt              Float? // g per 100 g
+  frontImage        String?
+  ingredientsImage  String?
+  nutritionImage    String?
+
+  // ---- workflow state (Option B: karma-gated review) ----
+  // pending | approved | auto_approved | rejected | superseded
+  status            String    @default("pending")
+  requiredApprovals Int       @default(2)
+  approvedCount     Int       @default(0)
+  rejectedCount     Int       @default(0)
+  changedFields     String    @default("[]") // JSON array of field names vs current approved revision
+  autoNote          String? // why it was auto-published, if it was
+  createdAt         DateTime  @default(now())
+  finalizedAt       DateTime?
+
+  reviews Review[]
+
+  @@unique([productId, version])
+}
+
+model Review {
+  id         String          @id @default(cuid())
+  revisionId String
+  revision   ProductRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  reviewerId String
+  reviewer   User            @relation(fields: [reviewerId], references: [id])
+  // approve | reject
+  verdict    String
+  comment    String?
+  createdAt  DateTime        @default(now())
+
+  @@unique([revisionId, reviewerId])
+}
+
+model ProductComment {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+}
+
+model KarmaEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  delta     Int
+  // revision_approved | revision_rejected | review_cast | seed
+  reason    String
+  refId     String?
+  createdAt DateTime @default(now())
 }
