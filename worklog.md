@@ -56,3 +56,21 @@ Work Log:
 Stage Summary:
 - Queue → product and profile → product navigation now work; queue cards show the barcode again. Lesson: route params for product pages are barcodes (natural key) — never productId. tsc --noEmit is now part of the check suite.
 - Camera barcode scanning: PROPOSAL ONLY delivered to user (no code written), per request.
+
+---
+Task ID: 12
+Agent: Z.ai Code (main agent)
+Task: Camera barcode scanning (approved Option A), designed for later app packaging (Capacitor/PWA).
+
+Work Log:
+- Installed @zxing/browser@0.2.1 (fallback decoder; BarcodeFormat re-exported, decodeFromStream(stream, video, cb) -> IScannerControls.stop()).
+- New src/components/ek/barcode-scanner.tsx: engine seam (createEngine) with NativeEngine (BarcodeDetector API, 180ms poll, formats ean_13/ean_8/upc_a/upc_e) and ZXingEngine (BrowserMultiFormatReader + possibleFormats over our own MediaStream). Capacitor native scanner documented as future engine #0 — component API (onDetected) unchanged by design.
+- Own getUserMedia stream (facingMode environment ideal) for torch control (applyConstraints advanced torch, hidden when unsupported); iOS-safe video attrs (playsInline muted autoPlay); secure-context + mediaDevices guard; error mapping NotAllowedError/SecurityError -> errPermission, NotFoundError/OverconstrainedError -> errNoCamera, else generic; retry button.
+- Acceptance gate: GS1 mod-10 isValidGtin (shipped fn tested standalone: 16/16 cases incl. EAN-8/UPC-A-as-GTIN13/14-digit/bad-check/unsupported length); in-store prefix 20–29 rejected with errInStore; haptic vibrate(60) on success.
+- UI: reticle with 9999px shadow mask + animated emerald scan line (globals.css ek-scanline), starting/error overlays with aria-live, i18n keys scanner.* added to BOTH en+sv dictionaries; search-box got an always-visible scan icon button (hidden while loading); submit wizard step 1 got a Scan button beside the barcode field; scan fills field + triggers existing-product check (no auto-advance: photos are step 1 too); home scan -> navigate('submit/{code}') which routes edit-vs-new automatically.
+- Fixed during verification: explicit Close button only stopped tracks but never closed the dialog (added onClose -> onOpenChange(false)); react-hooks/set-state-in-effect on effect-started camera (deferred with setTimeout 0).
+- Verified (agent-browser): scanner opens/closes from both entry points (Close button + Escape), headless no-camera path renders "Camera unavailable / No camera was found on this device" + Try again; no console errors; mobile 390px layout correct; lint + tsc --noEmit clean; dev.log clean. GTIN validator unit-tested by extracting the shipped function.
+
+Stage Summary:
+- Camera scanning live behind a platform adapter: native BarcodeDetector first, ZXing fallback, native-plugin slot ready for Capacitor packaging. Honest limit: real-camera decode (golden path) needs a physical device / Open-in-New-Tab — headless can only verify lifecycle + error paths.
+- Answer given to user: Option A still recommended for app packaging; packaging plan = PWA now, Capacitor later, swap in native scanner engine, bearer-token auth already WebView-safe.

@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, Loader2, Plus } from 'lucide-react'
+import { Search, Loader2, Plus, ScanBarcode } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { api } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import { navigate } from '@/lib/router'
 import { ProductThumb } from '@/components/ek/product-thumb'
+import { BarcodeScannerDialog } from '@/components/ek/barcode-scanner'
 import type { SearchItemDTO } from '@/lib/types'
 
 export function SearchBox() {
@@ -15,6 +16,7 @@ export function SearchBox() {
   const [results, setResults] = useState<SearchItemDTO[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,6 +56,15 @@ export function SearchBox() {
     navigate(path)
   }
 
+  // Scanned a barcode from the home screen: the submit wizard handles both
+  // cases — existing product (edit mode, prefilled) or new product.
+  const onScan = (code: string) => {
+    setScanOpen(false)
+    setQuery('')
+    setResults(null)
+    go(`submit/${code}`)
+  }
+
   return (
     <div ref={boxRef} className="relative w-full">
       <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -74,6 +85,16 @@ export function SearchBox() {
         inputMode="text"
       />
       {loading && <Loader2 className="absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />}
+      {!loading && (
+        <button
+          type="button"
+          onClick={() => setScanOpen(true)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          aria-label={t('scanner.title')}
+        >
+          <ScanBarcode className="h-5 w-5" aria-hidden />
+        </button>
+      )}
 
       {open && (results !== null || isBarcode) && (
         <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border bg-popover shadow-lg">
@@ -121,6 +142,8 @@ export function SearchBox() {
           )}
         </div>
       )}
+
+      <BarcodeScannerDialog open={scanOpen} onOpenChange={setScanOpen} onDetected={onScan} />
     </div>
   )
 }

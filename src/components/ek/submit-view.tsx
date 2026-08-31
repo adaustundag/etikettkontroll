@@ -24,6 +24,8 @@ import { EmptyState } from '@/components/ek/empty-state'
 import { api } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import { navigate } from '@/lib/router'
+import { toast } from 'sonner'
+import { BarcodeScannerDialog } from '@/components/ek/barcode-scanner'
 import { computeChangedFields, extractLabelValues } from '@/lib/label'
 import type { LabelField, LabelValues, MeDTO, ProductDetailDTO, SubmitResult } from '@/lib/types'
 import { cn } from '@/lib/utils'
@@ -93,6 +95,7 @@ export function SubmitView({
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [ocrBusy, setOcrBusy] = useState(false)
+  const [scanOpen, setScanOpen] = useState(false)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((f) => ({ ...f, [key]: value }))
@@ -138,6 +141,14 @@ export function SubmitView({
     if (barcodeParam) void checkBarcode(barcodeParam)
      
   }, [barcodeParam])
+
+  // Camera scan → fill the barcode and run the existing-product check.
+  const onScan = (code: string) => {
+    setScanOpen(false)
+    set('barcode', code)
+    void checkBarcode(code)
+    toast.success(t('scanner.scanned'))
+  }
 
   const autofill = async () => {
     if (!form.ingredientsImage) return
@@ -300,19 +311,25 @@ export function SubmitView({
           <CardContent className="space-y-5 p-5">
             <div className="space-y-1.5">
               <Label htmlFor="barcode">{t('submit.barcode')}</Label>
-              <div className="relative">
-                <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <Input
-                  id="barcode"
-                  inputMode="numeric"
-                  pattern="\d*"
-                  value={form.barcode}
-                  onChange={(e) => set('barcode', e.target.value.replace(/\D/g, '').slice(0, 14))}
-                  onBlur={() => void checkBarcode(form.barcode)}
-                  placeholder="7310865004703"
-                  className="pl-9 font-mono"
-                />
-                {checking && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <ScanBarcode className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input
+                    id="barcode"
+                    inputMode="numeric"
+                    pattern="\d*"
+                    value={form.barcode}
+                    onChange={(e) => set('barcode', e.target.value.replace(/\D/g, '').slice(0, 14))}
+                    onBlur={() => void checkBarcode(form.barcode)}
+                    placeholder="7310865004703"
+                    className="pl-9 font-mono"
+                  />
+                  {checking && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" aria-hidden />}
+                </div>
+                <Button type="button" variant="outline" className="shrink-0" onClick={() => setScanOpen(true)}>
+                  <Camera className="mr-1 h-4 w-4" aria-hidden />
+                  {t('scanner.scanCta')}
+                </Button>
               </div>
               <p className="text-xs text-muted-foreground">{t('submit.barcodeHint')}</p>
               {existing && (
@@ -524,6 +541,8 @@ export function SubmitView({
           <Skeleton className="h-4 w-64" />
         </div>
       )}
+
+      <BarcodeScannerDialog open={scanOpen} onOpenChange={setScanOpen} onDetected={onScan} />
     </div>
   )
 }

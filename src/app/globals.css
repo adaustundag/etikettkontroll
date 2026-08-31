@@ -120,3 +120,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Barcode scanner reticle scan line */
+@keyframes ek-scanline {
+  0%,
+  100% {
+    transform: translateY(2px);
+  }
+  50% {
+    transform: translateY(154px);
+  }
+}
+.animate-scanline {
+  animation: ek-scanline 2.2s ease-in-out infinite;
+}
