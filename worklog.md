@@ -111,3 +111,22 @@ Stage Summary:
 - Every API endpoint now has automated coverage: 88 tests / 8 files via `bun run test`, isolated DB, no dev-data pollution, ~2.5 s runtime. One real bug found and fixed (case-insensitive product search).
 - Social logins (Google/Facebook) are implemented but dormant: they activate only when GOOGLE_/FACEBOOK_ client id+secret env keys are set — user cannot log in with them in the preview because no OAuth apps exist yet (expected; setup guide delivered in Task 13).
 - Awaiting user input: GitHub remote URL + personal access token (or `gh auth login`) to actually push.
+
+---
+Task ID: 15
+Agent: Z.ai Code (main agent)
+Task: Push the project to GitHub (user supplied an empty repo URL + fine-grained PAT) and open a PR.
+
+Work Log:
+- Audited local git state before touching anything: branch main, clean tree, 8 commits, NO remote (confirming Task 14's blocked status). Secrets audit: tracked `.env` contains only a local SQLite path (no credentials) → no history rewrite needed; db files, logs, node_modules, .next all properly ignored; no .github/workflows (token needs no Workflows scope).
+- Verified the user's fine-grained PAT via REST: repo adaustundag/etikettkontroll exists, private=true, size=0 (truly empty), permissions push/admin → clean first push possible.
+- Pushed the full 8-commit baseline to origin/main. Token passed via command-scoped `http.https://github.com/.extraheader` Basic auth — never written to .git/config, .git-credentials or any file.
+- Created branch chore/repo-hygiene: `git rm --cached .env` (untrack only; local file untouched, .gitignore already covers `.env*`) + added root README.md (project overview, review-workflow model, stack, setup incl. `bun prisma/seed.ts` + `bun run test`, demo-accounts note).
+- Opened PR #1 via REST API (token scopes: Contents + Pull requests read/write only) → verified: state=open, diff is exactly `.env` removed + README.md +38.
+- Verified remote branches (main @ 418528f, chore/repo-hygiene @ 92e2691), rg-scanned .git/config for the token → clean; remote URL stored token-free; local repo back on main with clean tree.
+
+Stage Summary:
+- Codebase is now secured off-machine: https://github.com/adaustundag/etikettkontroll (private). main = full baseline; PR #1 awaits user merge in the UI: https://github.com/adaustundag/etikettkontroll/pull/1
+- Token hygiene: command-scoped auth only, zero persistent traces; user advised to revoke the PAT after merging.
+- Going forward the PR workflow is live: branch → push → PR → merge in UI.
+- Note for next agents: social login IS implemented but dormant without GOOGLE_/FACEBOOK_ env keys (Task 13); endpoint suite runs via `bun run test` (88 tests, Task 14).
