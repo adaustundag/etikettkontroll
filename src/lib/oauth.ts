@@ -226,11 +226,14 @@ export function finishSession(
     // Popup mode: hand the token to the opener (the app inside the preview
     // iframe) and close. If there is no opener (link opened as a plain new
     // tab), the cookie was still set — just continue into the app.
+    // targetOrigin is the app's own origin, never '*': a hostile page that
+    // embeds the app in an iframe must not receive the session token.
+    const targetOrigin = JSON.stringify(origin)
     const html = `<!doctype html><meta charset="utf-8"><title>Signed in</title><body><script>
 (function(){
   var handed=false;
   try{
-    if(window.opener){window.opener.postMessage({type:'ek_oauth',token:${JSON.stringify(token)}},'*');handed=true;}
+    if(window.opener){window.opener.postMessage({type:'ek_oauth',token:${JSON.stringify(token)}},${targetOrigin});handed=true;}
   }catch(e){}
   if(handed){setTimeout(function(){window.close()},200);}
   else{setTimeout(function(){window.location.replace('/')},200);}

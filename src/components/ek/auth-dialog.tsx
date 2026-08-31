@@ -88,6 +88,9 @@ export function AuthDialog({
     if (!open) return
     let cancelled = false
     const onMsg = (e: MessageEvent) => {
+      // Only accept handshakes from our own origin — a cross-origin page
+      // (e.g. a hostile iframe host) must not be able to inject a session.
+      if (e.origin !== window.location.origin) return
       const data = e.data as { type?: string; token?: string } | null
       if (!data || data.type !== 'ek_oauth' || typeof data.token !== 'string' || cancelled) return
       cancelled = true
