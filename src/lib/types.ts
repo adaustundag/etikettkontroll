@@ -98,6 +98,8 @@ export type StatsDTO = {
     userName: string
     userId: string
     createdAt: string
+    /** Field-level value changes vs the previous approved snapshot (empty for new products). */
+    changes: { field: string; from: string | null; to: string | null }[]
   }[]
 }
 

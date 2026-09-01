@@ -1,56 +1,72 @@
 'use client'
 
-import { useCallback, useEffect, useSyncExternalStore } from 'react'
+// React bindings + formatting helpers on top of the pure router (src/lib/route.ts).
 
-export type RouteView = 'home' | 'product' | 'submit' | 'queue' | 'profile'
-export type Route = { view: RouteView; param: string }
+import { useEffect, useSyncExternalStore } from 'react'
+import { currentRoute, parsePath, subscribe } from './route'
 
-export function parseHash(hash: string): Route {
-  const clean = hash.replace(/^#\/?/, '')
-  const [viewRaw, param = ''] = clean.split('/')
-  switch (viewRaw) {
-    case 'product':
-      return { view: 'product', param: decodeURIComponent(param) }
-    case 'submit':
-      return { view: 'submit', param: decodeURIComponent(param) }
-    case 'queue':
-      return { view: 'queue', param: '' }
-    case 'profile':
-      return { view: 'profile', param: decodeURIComponent(param) }
-    default:
-      return { view: 'home', param: '' }
-  }
-}
+export { navigate, parsePath, type Route, type RouteView } from './route'
 
-export function navigate(path: string) {
-  window.location.hash = path.startsWith('#') ? path : `#/${path.replace(/^\//, '')}`
+/**
+ * Repair legacy "#/..." URLs once the document has settled. Running this after
+ * hydration (not at module scope) avoids the browser re-applying the initial
+ * fragment over an early history.replaceState.
+ */
+function useLegacyHashCleanup(): void {
+  useEffect(() => {
+    const repair = () => {
+      const hash = window.location.hash
+      if (hash.startsWith('#/')) {
+        try {
+          window.history.replaceState(null, '', hash.slice(1) || '/')
+        } catch {
+          // ignore
+        }
+      }
+    }
+    // Wait until the initial load (incl. any pending fragment navigation) has
+    // settled, then keep repairing in case a legacy link lands later.
+    if (document.readyState === 'complete') {
+      repair()
+    } else {
+      window.addEventListener('load', repair, { once: true })
+    }
+    window.addEventListener('hashchange', repair)
+    return () => {
+      window.removeEventListener('load', repair)
+      window.removeEventListener('hashchange', repair)
+    }
+  }, [])
 }
 
 const SSR_ROUTE: Route = { view: 'home', param: '' }
 
-// getSnapshot must be referentially stable between calls, so cache by hash string.
-let lastHash = ''
-let lastRoute: Route = SSR_ROUTE
+// getSnapshot must be referentially stable between calls — cache by URL.
+let lastUrl = ''
+let lastRoute: Route = { view: 'home', param: '' }
+let haveRoute = false
 function cachedRoute(): Route {
-  const hash = window.location.hash
-  if (hash !== lastHash) {
-    lastHash = hash
-    lastRoute = parseHash(hash)
+  const url = window.location.pathname + window.location.hash
+  if (!haveRoute || url !== lastUrl) {
+    lastUrl = url
+    lastRoute = currentRoute()
+    haveRoute = true
   }
   return lastRoute
 }
 
-function subscribe(onChange: () => void) {
-  const wrapped = () => {
-    window.scrollTo({ top: 0 })
-    onChange()
-  }
-  window.addEventListener('hashchange', wrapped)
-  return () => window.removeEventListener('hashchange', wrapped)
-}
-
-export function useHashRoute(): Route {
-  return useSyncExternalStore(subscribe, cachedRoute, () => SSR_ROUTE)
+/**
+ * Subscribe to the current route. On the server (and during hydration) the
+ * `initialRoute` computed by the catch-all page is used, so deep links render
+ * the correct view in SSR HTML without a flash of home content.
+ */
+export function useRoute(initialRoute?: Route): Route {
+  useLegacyHashCleanup()
+  return useSyncExternalStore(
+    subscribe,
+    cachedRoute,
+    initialRoute ? () => initialRoute : () => SSR_ROUTE,
+  )
 }
 
 export function timeAgo(iso: string, lang: 'en' | 'sv'): string {

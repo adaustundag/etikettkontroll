@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ScanBarcode, Plus, ClipboardCheck, Sun, Moon, LogOut, User as UserIcon, Languages } from 'lucide-react'
+import { ScanBarcode, Plus, ClipboardCheck, Sun, Moon, LogOut, User as UserIcon } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -14,10 +14,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useLang } from '@/lib/i18n'
-import { initials, navigate, type Route } from '@/lib/router'
+import { initials, navigate } from '@/lib/router'
+import { AppLink } from '@/components/ek/app-link'
 import { api, onDataChanged } from '@/lib/api'
 import type { MeDTO, StatsDTO } from '@/lib/types'
 import { cn } from '@/lib/utils'
+import type { AuthMode } from '@/components/ek/app-shell'
 
 export function Header({
   me,
@@ -28,7 +30,7 @@ export function Header({
   me: MeDTO
   route: Route
   onSignOut: () => void
-  onSignIn: () => void
+  onSignIn: (mode?: AuthMode) => void
 }) {
   const { t, lang, setLang } = useLang()
   const { resolvedTheme, setTheme } = useTheme()
@@ -46,7 +48,7 @@ export function Header({
     return onDataChanged(fetchPending)
   }, [fetchPending, route.view])
 
-  const navBtn = (active: boolean) =>
+  const navLink = (active: boolean) =>
     cn(
       'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
       active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
@@ -55,9 +57,8 @@ export function Header({
   return (
     <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4">
-        <button
-          type="button"
-          onClick={() => navigate('')}
+        <AppLink
+          href="/"
           className="flex items-center gap-2 rounded-lg pr-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           aria-label={t('nav.home')}
         >
@@ -65,72 +66,70 @@ export function Header({
             <ScanBarcode className="h-4.5 w-4.5" aria-hidden />
           </span>
           <span className="text-base font-bold tracking-tight">
-            Etikett<span className="text-emerald-600 dark:text-emerald-400">Kontroll</span>
+            <span className="hidden sm:inline">
+              Etikett<span className="text-emerald-600 dark:text-emerald-400">Kontroll</span>
+            </span>
+            <span className="sm:hidden" aria-hidden>
+              <span className="text-base font-bold">
+                E<span className="text-emerald-600 dark:text-emerald-400">K</span>
+              </span>
+            </span>
           </span>
-        </button>
+        </AppLink>
 
         <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="Main">
-          <button type="button" className={navBtn(route.view === 'home')} onClick={() => navigate('')}>
+          <AppLink href="/" className={navLink(route.view === 'home')} aria-current={route.view === 'home' ? 'page' : undefined}>
             {t('nav.home')}
-          </button>
-          <button type="button" className={navBtn(route.view === 'submit')} onClick={() => navigate('submit')}>
+          </AppLink>
+          <AppLink href="/submit" className={navLink(route.view === 'submit')} aria-current={route.view === 'submit' ? 'page' : undefined}>
             {t('nav.add')}
-          </button>
-          <button type="button" className={cn(navBtn(route.view === 'queue'), 'relative')} onClick={() => navigate('queue')}>
+          </AppLink>
+          <AppLink href="/queue" className={cn(navLink(route.view === 'queue'), 'relative')} aria-current={route.view === 'queue' ? 'page' : undefined}>
             {t('nav.queue')}
             {pendingCount > 0 && (
               <span className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[11px] font-semibold text-white">
                 {pendingCount}
               </span>
             )}
-          </button>
+          </AppLink>
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
           {/* mobile quick actions */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative md:hidden"
-            onClick={() => navigate('queue')}
-            aria-label={t('nav.queue')}
-          >
-            <ClipboardCheck className="h-5 w-5" aria-hidden />
-            {pendingCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                {pendingCount}
-              </span>
-            )}
+          <Button asChild variant="ghost" size="icon" className="relative md:hidden">
+            <AppLink href="/queue" aria-label={t('nav.queue')}>
+              <ClipboardCheck className="h-5 w-5" aria-hidden />
+              {pendingCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
+                  {pendingCount}
+                </span>
+              )}
+            </AppLink>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => navigate('submit')}
-            aria-label={t('nav.add')}
-          >
-            <Plus className="h-5 w-5" aria-hidden />
+          <Button asChild variant="ghost" size="icon" className="md:hidden">
+            <AppLink href="/submit" aria-label={t('nav.add')}>
+              <Plus className="h-5 w-5" aria-hidden />
+            </AppLink>
           </Button>
 
-          {/* language toggle */}
+          {/* language toggle — Swedish first (SE on the left) */}
           <div
             className="flex items-center rounded-lg border bg-muted/50 p-0.5"
             role="group"
-            aria-label="Language / Språk"
+            aria-label="Språk / Language"
           >
-            <Languages className="ml-1.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-            {(['en', 'sv'] as const).map((l) => (
+            {(['sv', 'en'] as const).map((l) => (
               <button
                 key={l}
                 type="button"
                 onClick={() => setLang(l)}
                 aria-pressed={lang === l}
                 className={cn(
-                  'rounded-md px-2 py-1 text-xs font-semibold uppercase transition-colors',
+                  'rounded-md px-1.5 py-1 text-xs font-semibold uppercase transition-colors sm:px-2',
                   lang === l ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {l}
+                {l === 'sv' ? 'SE' : 'EN'}
               </button>
             ))}
           </div>
@@ -138,6 +137,7 @@ export function Header({
           <Button
             variant="ghost"
             size="icon"
+            className="hidden sm:inline-flex"
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             aria-label="Toggle theme"
           >
@@ -175,9 +175,14 @@ export function Header({
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={onSignIn}>
-              {t('common.signIn')}
-            </Button>
+            <>
+              <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => onSignIn('signin')}>
+                {t('common.signIn')}
+              </Button>
+              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => onSignIn('signup')}>
+                {t('common.signUp')}
+              </Button>
+            </>
           )}
         </div>
       </div>

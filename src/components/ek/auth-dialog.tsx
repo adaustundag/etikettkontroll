@@ -28,13 +28,22 @@ export function AuthDialog({
   open,
   onOpenChange,
   onAuthed,
+  initialMode = 'signin',
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onAuthed: (me: MeDTO) => void
+  initialMode?: 'signin' | 'signup'
 }) {
   const { t } = useLang()
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode)
+  // Re-apply the requested tab each time the dialog is opened (the CTA that
+  // opened it decides) — prop-derived state adjustment during render.
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) setMode(initialMode)
+  }
   const [magicMode, setMagicMode] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')

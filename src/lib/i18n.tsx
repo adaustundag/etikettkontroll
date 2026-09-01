@@ -59,9 +59,9 @@ const en = {
 
   // home
   'home.eyebrow': 'The peer-reviewed grocery database',
-  'home.title': 'Peer review for product labels.',
+  'home.title': "What's really on the label?",
   'home.subtitle':
-    'EtikettKontroll is a community-maintained database of ingredients and nutrition facts. Every change is reviewed by trusted contributors before it goes live — so what you read is what is printed on the package.',
+    'Search reviewed facts about ingredients and nutrition — every change is checked by experienced contributors before it goes live.',
   'home.searchPlaceholder': 'Search by product name or barcode…',
   'home.searching': 'Searching…',
   'home.noResults': 'No match yet — add it yourself?',
@@ -81,6 +81,8 @@ const en = {
   'home.how3Body': 'Trusted contributors compare the change against the photos and approve it. Only approved versions are shown to readers.',
   'home.recentTitle': 'Latest reviewed changes',
   'home.recentEmpty': 'No reviewed changes yet. Be the first to add a product!',
+  'home.trustLine': '{products} products · {contributors} contributors · {changes} reviewed changes',
+  'home.newProduct': 'New product',
   'home.queueTeaser': '{count} changes are awaiting review',
   'home.queueTeaserCta': 'Open the review queue',
   'home.browseTitle': 'Recently updated',
@@ -348,9 +350,9 @@ const sv: Record<TKey, string> = {
 
   // home
   'home.eyebrow': 'Den granskade livsmedelsdatabasen',
-  'home.title': 'Peer review för produktetiketter.',
+  'home.title': 'Vad står egentligen på etiketten?',
   'home.subtitle':
-    'EtikettKontroll är en communitydriven databas med ingredienser och näringsvärden. Varje ändring granskas av pålitliga bidragsgivare innan den publiceras — så det du läser är det som står på förpackningen.',
+    'Sök granskade fakta om ingredienser och näringsvärden — varje ändring kontrolleras av erfarna bidragsgivare innan den publiceras.',
   'home.searchPlaceholder': 'Sök på produktnamn eller streckkod…',
   'home.searching': 'Söker…',
   'home.noResults': 'Ingen träff ännu — lägg till den själv?',
@@ -368,8 +370,10 @@ const sv: Record<TKey, string> = {
   'home.how2Body': 'Skriv vad förpackningen säger — eller låt autoifyllning läsa fotot och rätt därefter.',
   'home.how3Title': 'Granskare godkänner',
   'home.how3Body': 'Pålitliga bidragsgivare jämför ändringen med fotona och godkänner. Endast godkända versioner visas för läsare.',
-  'home.recentTitle': 'Senast granskade ändringar',
+  'home.recentTitle': 'Senaste granskade ändringarna',
   'home.recentEmpty': 'Inga granskade ändringar än. Bli den första att lägga till en produkt!',
+  'home.trustLine': '{products} produkter · {contributors} bidragsgivare · {changes} verifierade ändringar',
+  'home.newProduct': 'Ny produkt',
   'home.queueTeaser': '{count} ändringar väntar på granskning',
   'home.queueTeaserCta': 'Öppna granskningskön',
   'home.browseTitle': 'Nyligen uppdaterade',

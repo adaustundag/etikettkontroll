@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { siteUrl } from "@/lib/site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,21 +16,34 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EtikettKontroll — Peer review for product labels",
+  metadataBase: new URL(siteUrl()),
+  title: {
+    default: "EtikettKontroll – Vad står egentligen på etiketten?",
+    template: "%s – EtikettKontroll",
+  },
   description:
-    "A community-maintained, revision-controlled database of grocery ingredients and nutrition facts. Every change is reviewed by trusted contributors before it goes live.",
+    "Granskad databas med ingredienser och näringsvärden från matetiketter. Sök på produktnamn eller streckkod – varje ändring kontrolleras av communityn innan den publiceras.",
   keywords: [
     "EtikettKontroll",
-    "ingredients",
-    "nutrition",
-    "grocery",
-    "open data",
-    "peer review",
+    "etikett",
+    "ingredienser",
+    "näringsvärden",
+    "streckkod",
+    "livsmedelsdatabas",
     "livsmedel",
     "ingrediensförteckning",
+    "open data",
   ],
   applicationName: "EtikettKontroll",
   manifest: "/manifest.webmanifest",
+  openGraph: {
+    siteName: "EtikettKontroll",
+    locale: "sv_SE",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+  },
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

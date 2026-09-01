@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { I18nProvider } from '@/lib/i18n'
-import { useHashRoute, type Route } from '@/lib/router'
+import { useRoute, type Route } from '@/lib/router'
 import { api, getToken, onDataChanged, setToken } from '@/lib/api'
 import { Header } from '@/components/ek/header'
 import { Footer } from '@/components/ek/footer'
@@ -19,11 +19,19 @@ function viewKey(route: Route): string {
   return `${route.view}:${route.param}`
 }
 
-function AppShell() {
-  const route = useHashRoute()
+export type AuthMode = 'signin' | 'signup'
+
+function AppShell({ initialRoute }: { initialRoute: Route }) {
+  const route = useRoute(initialRoute)
   const [me, setMe] = useState<MeDTO | null>(null)
   const [meLoaded, setMeLoaded] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<AuthMode>('signin')
+
+  const openAuth = useCallback((mode: AuthMode = 'signin') => {
+    setAuthMode(mode)
+    setAuthOpen(true)
+  }, [])
 
   const refreshMe = useCallback(() => {
     api
@@ -50,7 +58,7 @@ function AppShell() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Header me={me} route={route} onSignOut={signOut} onSignIn={() => setAuthOpen(true)} />
+      <Header me={me} route={route} onSignOut={signOut} onSignIn={openAuth} />
 
       <main className="flex-1">
         {meLoaded && (
@@ -63,24 +71,29 @@ function AppShell() {
             {route.view === 'home' && <HomeView me={me} />}
             {route.view === 'product' && <ProductView barcode={route.param} me={me} />}
             {route.view === 'submit' && (
-              <SubmitView barcodeParam={route.param} me={me} onNeedAuth={() => setAuthOpen(true)} />
+              <SubmitView barcodeParam={route.param} me={me} onNeedAuth={() => openAuth('signin')} />
             )}
-            {route.view === 'queue' && <QueueView me={me} onNeedAuth={() => setAuthOpen(true)} />}
+            {route.view === 'queue' && <QueueView me={me} onNeedAuth={() => openAuth('signin')} />}
             {route.view === 'profile' && <ProfileView key={route.param} userId={route.param} meId={me?.id} />}
           </motion.div>
         )}
       </main>
 
       <Footer />
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} onAuthed={(m) => setMe(m)} />
+      <AuthDialog
+        open={authOpen}
+        onOpenChange={setAuthOpen}
+        initialMode={authMode}
+        onAuthed={(m) => setMe(m)}
+      />
     </div>
   )
 }
 
-export default function Page() {
+export default function AppShellRoot({ initialRoute }: { initialRoute: Route }) {
   return (
     <I18nProvider>
-      <AppShell />
+      <AppShell initialRoute={initialRoute} />
     </I18nProvider>
   )
 }

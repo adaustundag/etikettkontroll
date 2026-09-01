@@ -1,15 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Camera, PenLine, CheckCheck, ArrowRight, ClipboardList, Package, Users, GitPullRequestArrow, Clock } from 'lucide-react'
+import { Camera, PenLine, CheckCheck, ArrowRight, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SearchBox } from '@/components/ek/search-box'
 import { ProductThumb } from '@/components/ek/product-thumb'
+import { AppLink } from '@/components/ek/app-link'
 import { api } from '@/lib/api'
-import { useLang } from '@/lib/i18n'
-import { navigate, timeAgo } from '@/lib/router'
+import { useLang, type TKey } from '@/lib/i18n'
+import { timeAgo } from '@/lib/router'
 import type { MeDTO, SearchItemDTO, StatsDTO } from '@/lib/types'
 
 export function HomeView({ me }: { me: MeDTO }) {
@@ -31,14 +33,7 @@ export function HomeView({ me }: { me: MeDTO }) {
     return undefined
   }, [])
 
-  const statCards = stats
-    ? [
-        { icon: Package, value: stats.products, label: t('home.statProducts') },
-        { icon: Users, value: stats.contributors, label: t('home.statContributors') },
-        { icon: GitPullRequestArrow, value: stats.approvedCount, label: t('home.statReviewed') },
-        { icon: Clock, value: stats.pendingCount, label: t('home.statPending') },
-      ]
-    : []
+  const fmt = (n: number) => new Intl.NumberFormat(lang === 'sv' ? 'sv-SE' : 'en-GB').format(n)
 
   const steps = [
     { icon: Camera, title: t('home.how1Title'), body: t('home.how1Body') },
@@ -48,7 +43,7 @@ export function HomeView({ me }: { me: MeDTO }) {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:py-14">
-      {/* Hero */}
+      {/* Hero — search dead center */}
       <section className="text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{t('home.eyebrow')}</p>
         <h1 className="mx-auto mt-3 max-w-2xl text-balance text-4xl font-bold tracking-tight sm:text-5xl">{t('home.title')}</h1>
@@ -56,35 +51,117 @@ export function HomeView({ me }: { me: MeDTO }) {
         <div className="mx-auto mt-8 max-w-xl">
           <SearchBox />
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-          <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate('submit')}>
-            {t('home.addProduct')}
+
+        {/* live trust line */}
+        <div className="mt-4 flex min-h-5 justify-center" aria-live="polite">
+          {stats ? (
+            <p className="text-sm text-muted-foreground">
+              {t('home.trustLine', {
+                products: fmt(stats.products),
+                contributors: fmt(stats.contributors),
+                changes: fmt(stats.approvedCount),
+              })}
+            </p>
+          ) : (
+            <Skeleton className="h-5 w-72" />
+          )}
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Button asChild size="lg" className="bg-emerald-600 hover:bg-emerald-700">
+            <AppLink href="/submit">{t('home.addProduct')}</AppLink>
           </Button>
           {stats && stats.pendingCount > 0 && (
-            <Button size="lg" variant="outline" onClick={() => navigate('queue')}>
-              {t('home.queueTeaser', { count: stats.pendingCount })}
-              <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+            <Button asChild size="lg" variant="outline">
+              <AppLink href="/queue">
+                {t('home.queueTeaser', { count: stats.pendingCount })}
+                <ArrowRight className="ml-1 h-4 w-4" aria-hidden />
+              </AppLink>
             </Button>
           )}
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="mt-12" aria-label="Statistics">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {!stats &&
-            Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
-          {statCards.map(({ icon: Icon, value, label }) => (
-            <Card key={label} className="rounded-2xl border-zinc-200 dark:border-zinc-800">
-              <CardContent className="flex flex-col items-center gap-1 p-4 text-center">
-                <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                <span className="text-2xl font-bold tabular-nums">{value}</span>
-                <span className="text-xs text-muted-foreground">{label}</span>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      {/* Change feed — what changed lately */}
+      <section className="mt-14" aria-labelledby="recent-title">
+        <h2 id="recent-title" className="text-xl font-semibold tracking-tight">{t('home.recentTitle')}</h2>
+        {!stats && (
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+          </div>
+        )}
+        {stats && stats.recent.length === 0 && (
+          <p className="mt-4 text-sm text-muted-foreground">{t('home.recentEmpty')}</p>
+        )}
+        {stats && stats.recent.length > 0 && (
+          <ul className="mt-4 divide-y rounded-2xl border bg-card">
+            {stats.recent.map((r) => (
+              <li key={r.id} className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <CheckCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                  <AppLink
+                    href={`/product/${r.barcode}`}
+                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
+                  >
+                    {r.productName}
+                  </AppLink>
+                  {r.version === 1 ? (
+                    <Badge variant="secondary" className="shrink-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      {t('home.newProduct')}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="shrink-0">v{r.version}</Badge>
+                  )}
+                  <AppLink
+                    href={`/profile/${r.userId}`}
+                    className="hidden min-w-0 max-w-40 truncate text-xs text-muted-foreground hover:underline sm:block"
+                  >
+                    {r.userName}
+                  </AppLink>
+                  <time className="shrink-0 text-xs text-muted-foreground" dateTime={r.createdAt}>
+                    {timeAgo(r.createdAt, lang)}
+                  </time>
+                </div>
+                {r.version > 1 && r.changes.length > 0 && (
+                  <div className="ml-7 mt-1.5 flex flex-wrap gap-1.5">
+                    {r.changes.slice(0, 4).map((c) => (
+                      <span key={c.field} className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">
+                        <span className="font-sans text-muted-foreground">{t(`field.${c.field}` as TKey)}:</span>{' '}
+                        {c.from ?? '—'} <span aria-hidden>→</span> {c.to ?? '—'}
+                      </span>
+                    ))}
+                    {r.changes.length > 4 && (
+                      <span className="self-center text-xs text-muted-foreground">+{r.changes.length - 4}</span>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
+
+      {/* Recently updated products */}
+      {recentProducts.length > 0 && (
+        <section className="mt-14" aria-labelledby="browse-title">
+          <h2 id="browse-title" className="text-xl font-semibold tracking-tight">{t('home.browseTitle')}</h2>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+            {recentProducts.slice(0, 8).map((p) => (
+              <AppLink
+                key={p.id}
+                href={`/product/${p.barcode}`}
+                className="group overflow-hidden rounded-2xl border bg-card text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
+                <ProductThumb src={null} name={p.name} className="aspect-[4/3] w-full text-3xl transition-transform group-hover:scale-[1.02]" />
+                <div className="p-3">
+                  <p className="truncate text-sm font-semibold">{p.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{p.brand}</p>
+                </div>
+              </AppLink>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* How it works */}
       <section className="mt-14" aria-labelledby="how-title">
@@ -109,73 +186,6 @@ export function HomeView({ me }: { me: MeDTO }) {
         </div>
       </section>
 
-      {/* Recent activity */}
-      <section className="mt-14" aria-labelledby="recent-title">
-        <h2 id="recent-title" className="text-xl font-semibold tracking-tight">{t('home.recentTitle')}</h2>
-        {!stats && (
-          <div className="mt-4 space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-14 rounded-xl" />)}
-          </div>
-        )}
-        {stats && stats.recent.length === 0 && (
-          <p className="mt-4 text-sm text-muted-foreground">{t('home.recentEmpty')}</p>
-        )}
-        {stats && stats.recent.length > 0 && (
-          <ul className="mt-4 divide-y rounded-2xl border bg-card">
-            {stats.recent.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-4 py-3">
-                <CheckCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                <p className="min-w-0 flex-1 truncate text-sm">
-                  <button
-                    type="button"
-                    className="font-medium hover:underline"
-                    onClick={() => navigate(`profile/${r.userId}`)}
-                  >
-                    {r.userName}
-                  </button>{' '}
-                  <span className="text-muted-foreground">
-                    {t('home.activity', { user: '', version: r.version, product: '' })}
-                  </span>
-                  <button
-                    type="button"
-                    className="font-medium hover:underline"
-                    onClick={() => navigate(`product/${r.barcode}`)}
-                  >
-                    {r.productName}
-                  </button>
-                </p>
-                <time className="shrink-0 text-xs text-muted-foreground" dateTime={r.createdAt}>
-                  {timeAgo(r.createdAt, lang)}
-                </time>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Recently updated products */}
-      {recentProducts.length > 0 && (
-        <section className="mt-14" aria-labelledby="browse-title">
-          <h2 id="browse-title" className="text-xl font-semibold tracking-tight">{t('home.browseTitle')}</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-            {recentProducts.slice(0, 8).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => navigate(`product/${p.barcode}`)}
-                className="group overflow-hidden rounded-2xl border bg-card text-left transition-shadow hover:shadow-md"
-              >
-                <ProductThumb src={null} name={p.name} className="aspect-[4/3] w-full text-3xl transition-transform group-hover:scale-[1.02]" />
-                <div className="p-3">
-                  <p className="truncate text-sm font-semibold">{p.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{p.brand}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Reviewer teaser */}
       {me && stats && stats.pendingCount > 0 && (
         <section className="mt-14">
@@ -187,8 +197,8 @@ export function HomeView({ me }: { me: MeDTO }) {
                   {t('home.queueTeaser', { count: stats.pendingCount })}
                 </p>
               </div>
-              <Button size="sm" variant="outline" className="border-amber-300 dark:border-amber-800" onClick={() => navigate('queue')}>
-                {t('home.queueTeaserCta')}
+              <Button asChild size="sm" variant="outline" className="border-amber-300 dark:border-amber-800">
+                <AppLink href="/queue">{t('home.queueTeaserCta')}</AppLink>
               </Button>
             </CardContent>
           </Card>
