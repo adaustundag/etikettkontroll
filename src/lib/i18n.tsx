@@ -591,13 +591,18 @@ type I18nContextValue = {
 const I18nContext = createContext<I18nContextValue | null>(null)
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>('en')
+  // Swedish is the product's home market — default to it unless the visitor
+  // has an explicit preference stored in localStorage ('ek-lang').
+  const [lang, setLangState] = useState<Lang>('sv')
 
   useEffect(() => {
     const stored = window.localStorage.getItem('ek-lang')
     if (stored === 'sv' || stored === 'en') {
       // apply after hydration to avoid cascading renders (React lint rule)
-      queueMicrotask(() => setLangState(stored))
+      queueMicrotask(() => {
+        setLangState(stored)
+        document.documentElement.lang = stored
+      })
     }
   }, [])
 
