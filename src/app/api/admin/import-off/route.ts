@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(summary)
   } catch (err) {
     console.error('import-off error', err)
-    return NextResponse.json({ error: 'Import failed partway. Safe to re-run — existing barcodes are skipped.' }, { status: 502 })
+    const detail = err instanceof Error ? err.message.slice(0, 300) : String(err)
+    return NextResponse.json({ error: `Import failed: ${detail}. Safe to re-run — existing barcodes are skipped.` }, { status: 502 })
   }
 }
