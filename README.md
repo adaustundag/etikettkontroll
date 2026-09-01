@@ -47,7 +47,7 @@ bun run test
   - `APP_URL=https://etikettkontroll-production.up.railway.app` — public origin used to build magic sign-in links (optional; `x-forwarded-*` headers are used as fallback)
   - `HOSTNAME=0.0.0.0`
 - First boot does **not** seed the demo dataset in production (demo users have public passwords). To seed an empty production database explicitly, set `EK_AUTO_SEED=1` for one boot. In development it seeds by default; disable with `EK_AUTO_SEED=0`.
-- **Label auto-fill (OCR):** optional. Set `OCR_API_KEY` (plus optional `OCR_BASE_URL`, default `https://api.openai.com/v1`, and `OCR_MODEL`, default `gpt-4o-mini`) to enable AI auto-fill from the ingredients photo — any OpenAI-compatible vision endpoint works. Unset = the feature is hidden.
+- **Label auto-fill (OCR):** optional. Recommended: **Google Gemini** (free tier) — create a key at [aistudio.google.com](https://aistudio.google.com) and set `OCR_API_KEY`, `OCR_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai`, `OCR_MODEL=gemini-2.5-flash`. Any OpenAI-compatible vision endpoint works (for plain OpenAI, omit `OCR_BASE_URL`/`OCR_MODEL` → `gpt-4o-mini`). Unset = the feature is hidden. Gemini's free tier allows ~10 req/min — the built-in 20/min/user cap still bounds cost, and provider 429s degrade to "type it manually".
 - Security headers (nosniff, Referrer-Policy, HSTS; production also sends frame + camera policies) ship automatically via `next.config.ts` — no configuration needed
 - Backups: the database is a single file under `/data/db` — snapshot the volume
 
