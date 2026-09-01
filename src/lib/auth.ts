@@ -77,6 +77,6 @@ export async function getSessionUser() {
   if (!payload) return null
   return db.user.findUnique({
     where: { id: payload.uid },
-    select: { id: true, email: true, name: true, karma: true, createdAt: true },
+    select: { id: true, email: true, name: true, karma: true, trustLevel: true, createdAt: true },
   })
 }

@@ -110,7 +110,7 @@ export function SearchBox() {
                     }}
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent"
                   >
-                    <ProductThumb src={null} name={item.name} className="h-10 w-10 shrink-0 rounded-lg text-base" />
+                    <ProductThumb src={item.frontImage} name={item.name} className="h-10 w-10 shrink-0 rounded-lg text-base" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-medium">{item.name}</span>
                       <span className="block truncate text-xs text-muted-foreground">

@@ -80,7 +80,8 @@ export type ProductDetailDTO = {
 }
 
 export type SearchItemDTO = ProductDTO & {
-  hasImage: boolean
+  /** Front photo of the latest approved revision, if any. */
+  frontImage: string | null
   approvedCount: number
 }
 

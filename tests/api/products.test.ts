@@ -21,12 +21,13 @@ describe('GET /api/products — search', () => {
 
     const res = await productsGET(req('GET', '/api/products'))
     expect(res.status).toBe(200)
-    const items = (await res.json()) as { barcode: string; name: string; brand: string; hasImage: boolean; approvedCount: number }[]
+    const items = (await res.json()) as { barcode: string; name: string; brand: string; frontImage: string | null; approvedCount: number }[]
     expect(items.length).toBe(2)
     // newest updated first
     expect(items[0].name).toBe('Kalles Kaviar')
     expect(items[1].name).toBe('Oatly Barista Oat Drink')
-    expect(items.find((i) => i.name === 'Kalles Kaviar')!.hasImage).toBe(true)
+    expect(items.find((i) => i.name === 'Kalles Kaviar')!.frontImage).toBe('/uploads/x.jpg')
+    expect(items.find((i) => i.name === 'Oatly Barista Oat Drink')!.frontImage).toBeNull()
     expect(items.every((i) => i.approvedCount === 1)).toBe(true)
   })
 

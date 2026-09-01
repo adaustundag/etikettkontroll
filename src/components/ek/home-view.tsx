@@ -117,7 +117,7 @@ export function HomeView({ me }: { me: MeDTO | null }) {
                 href={`/product/${p.barcode}`}
                 className="group overflow-hidden rounded-2xl border bg-card text-left transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                <ProductThumb src={null} name={p.name} className="aspect-[4/3] w-full text-3xl transition-transform group-hover:scale-[1.02]" />
+                <ProductThumb src={p.frontImage} name={p.name} className="aspect-[4/3] w-full text-3xl transition-transform group-hover:scale-[1.02]" />
                 <div className="p-3">
                   <p className="truncate text-sm font-semibold">{p.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{p.brand}</p>

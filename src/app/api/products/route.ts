@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
       brand: p.brand,
       createdAt: p.createdAt.toISOString(),
       updatedAt: p.updatedAt.toISOString(),
-      hasImage: (p.revisions[0]?.frontImage ?? null) !== null,
+      frontImage: p.revisions[0]?.frontImage ?? null,
       approvedCount: p._count.revisions,
     })),
   )

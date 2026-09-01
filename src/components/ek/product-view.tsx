@@ -360,10 +360,16 @@ export function ProductView({
             {detail.product.barcode}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {current ? (
+            {current && detail.reviewerCount > 0 ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 <BadgeCheck className="h-4 w-4" aria-hidden />
                 {t('product.verified', { count: detail.reviewerCount })}
+              </span>
+            ) : current?.autoNote ? (
+              // Machine-imported data: no human reviewers yet — say so honestly.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
+                <ScanBarcode className="h-4 w-4" aria-hidden />
+                {t('product.imported')}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
