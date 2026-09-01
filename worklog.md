@@ -359,3 +359,25 @@ Work Log:
 Stage Summary:
 - P1 shipped and verified in production: 4 new public pages, /andringar full change log, shared diff engine, mobile drawer, dynamic OG cards. origin/main = 7174751.
 - PAT from chat is STILL ACTIVE â€” user must revoke it (repeated warning).
+
+---
+Task ID: 26
+Agent: opencode (GLM-5.3-Flash, local)
+Task: P2 — crawlable SSR product pages, serving-size UX fix, provider-agnostic OCR, production verification.
+
+Work Log:
+- SSR: new src/lib/product-detail.ts (shared server loader); catch-all page server-fetches product detail, passes initialProduct into the shell, calls notFound() for unknown barcodes (real HTTP 404, Swedish not-found.tsx). Public views (home/product/changes/about/privacy/how) render without waiting for the auth probe.
+- Serving size: moved out of the per-100g nutrition grid in the submit wizard into its own optional field with explanatory hint; nutrition-table header now always says "per 100 g" and shows serving size as a footer row (product.servingInfo). Fixes portion size implying a per-portion basis for the values.
+- OCR: z-ai-web-dev-sdk removed; /api/ocr is now any OpenAI-compatible vision endpoint via fetch (OCR_API_KEY / OCR_BASE_URL / OCR_MODEL). GET /api/ocr availability probe; submit wizard hides the auto-fill button when unset. Tests rewritten to mock fetch (no live provider calls).
+- Seed: production no longer auto-seeds the demo dataset (EK_AUTO_SEED=1 opt-in; dev unchanged).
+- Verified locally: 100/100 tests, eslint clean, tsc clean (src), SSR content + 404 confirmed on a live dev server.
+- Deployed (9b3a788) and verified in production: SSR name+ingredients in raw HTML, serving-size row in HTML, /product/0000000000000 -> 404, robots/sitemap/OG OK, demo data intact (8 products — user added one).
+- Docs: Gemini documented as recommended OCR provider (277a0f2).
+
+PENDING (user actions):
+- [ ] Create Gemini API key at https://aistudio.google.com (Get API key) and set on Railway: OCR_API_KEY, OCR_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai, OCR_MODEL=gemini-2.5-flash. Then re-verify /api/ocr -> available:true + one live auto-fill.
+- [ ] User is still playing with the demo dataset — when done: point DATABASE_URL at a fresh file (e.g. file:/data/db/prod.db?connection_limit=1) to wipe it; prod no longer re-seeds.
+- [ ] REPEAT WARNING from Task 25-b: the chat-supplied PAT is still active — revoke it at github.com/settings/tokens.
+
+Stage Summary:
+- P2 shipped and verified in production. Product pages are crawlable, unknown barcodes 404 correctly, serving size can no longer masquerade as the per-100g basis, OCR is provider-agnostic and degrades to hidden.
