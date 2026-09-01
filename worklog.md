@@ -279,3 +279,27 @@ Stage Summary:
 - Commit 641e0f1 on main (17 files, +601/−248), NOT pushed — old PAT revoked, awaiting fresh token from user.
 - Local verification complete; production curl probes (deep links 200, OG tags, sitemap) pending post-push.
 - Lesson recorded: Chromium fragment-navigation vs early replaceState; deferred URL repair is the robust pattern.
+
+---
+Task ID: 23-b
+Agent: Z.ai Code (main agent)
+Task: Push P0 to origin/main with user-supplied PAT + production deploy verification (curl + browser smoke).
+
+Work Log:
+- Pre-push: stray auto-checkpointer commit 5e40619 (held the real Task 23 worklog entry, +25 lines) reworded to "docs: worklog Task 23 (P0 execution record)" -> c825576; content preserved, not dropped.
+- Pre-push sanity: eslint clean; 92/92 tests / 339 expects green.
+- Pushed fc97242..c825576 main -> main with PAT (command-scoped, not stored; ls-remote confirms origin/main = c825576).
+- Railway auto-deploy picked the push: /sitemap.xml flipped 404 -> 200 on poll 4 (~80 s).
+- Production curl probes (etikettkontroll-production.up.railway.app), all pass:
+  - / -> 200, <html lang="sv">, title "EtikettKontroll – Vad står egentligen på etiketten?", og:title/description/site_name/locale sv_SE.
+  - /product/7311311001109 -> 200, per-product title "Felix Ketchup Original 500 g – Felix – EtikettKontroll", SV meta description, canonical + og:title (the Sonnet-flagged SEO gap is closed in prod).
+  - /queue -> noindex, nofollow; /product/doesnotexist999 -> "Produkten hittades inte" + noindex, follow.
+  - robots.txt -> generated (Disallow /api/ + /queue, Sitemap line); sitemap.xml -> DB-driven with product URLs + lastmod.
+  - /api/stats -> 200 with recent[].changes field-level diffs (e.g. protein "16 g" -> "15.8 g"); /api/products -> 200.
+- Production browser smoke (agent-browser): home renders fully (SE|EN toggle SE-first, Logga in + Skapa konto CTAs, change feed, product grid, search hero), zero page errors; click feed link -> SPA nav to /product/7311311001109 with product heading; legacy #/product/6405210004406 -> correct view (Arla) + URL repaired to clean path.
+
+Stage Summary:
+- P0 fully shipped: origin/main = c825576, deployed and verified live in production. P0 exit criteria all met (deep links 200 + OG present, 92 tests, lint, browser walkthrough, pushed).
+- Token hygiene: PAT used only in push commands, never written to disk; user should revoke/rotate it now that it has passed through chat.
+- Standing user TODO unchanged: AUTH_SECRET on Railway is still the README placeholder literal (session forgery proven in Task 21) — replace with real `openssl rand -hex 32` output before public launch.
+- P1 (static pages, /andringar full change stream + revision diff, visual polish/mobile drawer, OG images) awaits user review of P0.
