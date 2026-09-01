@@ -232,3 +232,25 @@ Work Log:
 
 Stage Summary:
 - All hardening behavior verified live post-push: 59/59 API checks, 92/92 unit suite, UI golden paths + mobile clean, fail-closed AUTH_SECRET proven. Worklog commit is local-only (token not stored); push with next batch.
+
+---
+Task ID: 21
+Agent: Z.ai Code (main agent)
+Task: Production deploy verification + critical security fixes + Swedish default language.
+
+Work Log:
+- Re-checked production (etikettkontroll-production.up.railway.app): DB layer healthy after user's start-command fix (stats/products/queue/detail all 200 with full seed).
+- CRITICAL: user pasted the literal README placeholder `<openssl rand -hex 32>` as the AUTH_SECRET value. Proven by forging a session token HMAC-signed with that exact string — production accepted it and returned a real user session. Instructed user to paste real `openssl rand -hex 32` output instead.
+- Login diagnostics pre-fix: 401 on wrong password / 500 on correct credentials / 500 on well-formed fake-sig token at /api/auth/me → failure isolated to token signing (secret missing, later placeholder).
+- Landmines verified live pre-fix: public email leak on GET /api/users/[id]; magic devLink handed to anonymous callers; link host was https://0.0.0.0:8080 (HOSTNAME/PORT-derived, dead).
+- Fixes shipped (no PR, direct to main per user):
+  1. magic/request: devLink withheld in production (503 when no mail provider; dev/test unchanged) — closes the account-takeover path.
+  2. magic/request: publicOrigin() = APP_URL → x-forwarded-host/proto → nextUrl.origin; never HOSTNAME → fixes dead links behind proxy.
+  3. users/[id]: email included only when viewer === profile owner (ProfileDTO.email optional; profile-view already guarded by isSelf).
+  4. README: AUTH_SECRET instructions un-misleading (paste command OUTPUT, not the command); added APP_URL variable one-liner.
+  5. i18n: default language sv (was en); stored 'ek-lang' preference still respected; documentElement.lang synced on hydration; layout <html lang="sv">.
+- Tests updated to codify hardened behavior (anonymous → no email; self → email present): 92 pass / 339 expects / 0 fail; eslint clean.
+
+Stage Summary:
+- After this deploy: takeover + email-leak landmines closed; magic sign-in in production requires RESEND_API_KEY (+ MAIL_FROM, APP_URL recommended) — fails closed with 503 otherwise.
+- User TODO: replace AUTH_SECRET with real openssl output (forge demonstrated against the placeholder remains valid until then).
