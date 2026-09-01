@@ -46,7 +46,8 @@ bun run test
   - `AUTH_SECRET` — **required in production**: run `openssl rand -hex 32` in a terminal and paste its 64-character hex OUTPUT as the value. Never paste the command itself or `<angle brackets>` — a guessable secret makes every session token forgeable (sessions fail closed without the variable at all)
   - `APP_URL=https://etikettkontroll-production.up.railway.app` — public origin used to build magic sign-in links (optional; `x-forwarded-*` headers are used as fallback)
   - `HOSTNAME=0.0.0.0`
-- First boot **auto-seeds the demo dataset** when the database is empty (disable with `EK_AUTO_SEED=0`)
+- First boot does **not** seed the demo dataset in production (demo users have public passwords). To seed an empty production database explicitly, set `EK_AUTO_SEED=1` for one boot. In development it seeds by default; disable with `EK_AUTO_SEED=0`.
+- **Label auto-fill (OCR):** optional. Set `OCR_API_KEY` (plus optional `OCR_BASE_URL`, default `https://api.openai.com/v1`, and `OCR_MODEL`, default `gpt-4o-mini`) to enable AI auto-fill from the ingredients photo — any OpenAI-compatible vision endpoint works. Unset = the feature is hidden.
 - Security headers (nosniff, Referrer-Policy, HSTS; production also sends frame + camera policies) ship automatically via `next.config.ts` — no configuration needed
 - Backups: the database is a single file under `/data/db` — snapshot the volume
 

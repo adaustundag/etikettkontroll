@@ -13,7 +13,7 @@ import { api } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import type { MeDTO, SearchItemDTO, StatsDTO } from '@/lib/types'
 
-export function HomeView({ me }: { me: MeDTO }) {
+export function HomeView({ me }: { me: MeDTO | null }) {
   const { t, lang } = useLang()
   const [stats, setStats] = useState<StatsDTO | null>(null)
   const [recentProducts, setRecentProducts] = useState<SearchItemDTO[]>([])

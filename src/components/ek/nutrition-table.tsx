@@ -27,7 +27,7 @@ export function NutritionTable({ values }: { values: LabelValues }) {
       <TableHeader>
         <TableRow>
           <TableHead>{t('product.nutrition')}</TableHead>
-          <TableHead className="text-right">{values.servingSize ?? t('product.nutritionPer')}</TableHead>
+          <TableHead className="text-right">{t('common.per100g')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -48,6 +48,13 @@ export function NutritionTable({ values }: { values: LabelValues }) {
             </TableRow>
           )
         })}
+        {values.servingSize && (
+          <TableRow>
+            <TableCell colSpan={2} className="text-xs text-muted-foreground">
+              {t('product.servingInfo', { size: values.servingSize })}
+            </TableCell>
+          </TableRow>
+        )}
       </TableBody>
     </Table>
   )

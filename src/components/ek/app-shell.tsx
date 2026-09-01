@@ -17,7 +17,7 @@ import { ChangesView } from '@/components/ek/changes-view'
 import { AboutView } from '@/components/ek/about-view'
 import { PrivacyView } from '@/components/ek/privacy-view'
 import { HowView } from '@/components/ek/how-view'
-import type { MeDTO } from '@/lib/types'
+import type { MeDTO, ProductDetailDTO } from '@/lib/types'
 
 function viewKey(route: Route): string {
   return `${route.view}:${route.param}`
@@ -25,7 +25,11 @@ function viewKey(route: Route): string {
 
 export type AuthMode = 'signin' | 'signup'
 
-function AppShell({ initialRoute }: { initialRoute: Route }) {
+// Views that render for anonymous visitors and must not wait for the auth
+// probe — they appear in the SSR HTML and paint immediately on slow links.
+const PUBLIC_VIEWS = new Set<Route['view']>(['home', 'product', 'changes', 'about', 'privacy', 'how'])
+
+function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initialProduct?: ProductDetailDTO }) {
   const route = useRoute(initialRoute)
   const [me, setMe] = useState<MeDTO | null>(null)
   const [meLoaded, setMeLoaded] = useState(false)
@@ -65,7 +69,7 @@ function AppShell({ initialRoute }: { initialRoute: Route }) {
       <Header me={me} route={route} onSignOut={signOut} onSignIn={openAuth} />
 
       <main className="flex-1">
-        {meLoaded && (
+        {(meLoaded || PUBLIC_VIEWS.has(route.view)) && (
           <motion.div
             key={viewKey(route)}
             initial={{ opacity: 0, y: 6 }}
@@ -73,7 +77,14 @@ function AppShell({ initialRoute }: { initialRoute: Route }) {
             transition={{ duration: 0.18, ease: 'easeOut' }}
           >
             {route.view === 'home' && <HomeView me={me} />}
-            {route.view === 'product' && <ProductView barcode={route.param} me={me} />}
+            {route.view === 'product' && (
+              <ProductView
+                barcode={route.param}
+                me={me}
+                // SSR data only applies to the barcode actually in the URL.
+                initialDetail={initialProduct?.product.barcode === route.param ? initialProduct : undefined}
+              />
+            )}
             {route.view === 'submit' && (
               <SubmitView barcodeParam={route.param} me={me} onNeedAuth={() => openAuth('signin')} />
             )}
@@ -98,10 +109,16 @@ function AppShell({ initialRoute }: { initialRoute: Route }) {
   )
 }
 
-export default function AppShellRoot({ initialRoute }: { initialRoute: Route }) {
+export default function AppShellRoot({
+  initialRoute,
+  initialProduct,
+}: {
+  initialRoute: Route
+  initialProduct?: ProductDetailDTO
+}) {
   return (
     <I18nProvider>
-      <AppShell initialRoute={initialRoute} />
+      <AppShell initialRoute={initialRoute} initialProduct={initialProduct} />
     </I18nProvider>
   )
 }

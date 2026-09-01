@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
+import { notFound } from 'next/navigation'
 import AppShellRoot from '@/components/ek/app-shell'
 import { parsePath } from '@/lib/route'
 import { siteUrl } from '@/lib/site'
 import { db } from '@/lib/db'
+import { getProductDetail } from '@/lib/product-detail'
+import type { ProductDetailDTO } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,5 +137,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function AppRoute({ params }: Props) {
   const { slug } = await params
-  return <AppShellRoot initialRoute={routeFromSlug(slug)} />
+  const route = routeFromSlug(slug)
+
+  // Product pages are server-rendered with real content so crawlers and
+  // no-JS visitors see the actual label data, not an empty shell.
+  if (route.view === 'product' && route.param) {
+    let detail: ProductDetailDTO | null = null
+    let dbReachable = true
+    try {
+      detail = await getProductDetail(route.param)
+    } catch {
+      dbReachable = false // cold boot / transient DB error — let the client fetch handle it
+    }
+    if (dbReachable && !detail) notFound() // real 404 status for unknown barcodes
+    return <AppShellRoot initialRoute={route} initialProduct={detail ?? undefined} />
+  }
+
+  return <AppShellRoot initialRoute={route} />
 }

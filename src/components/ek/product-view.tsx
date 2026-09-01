@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   BadgeCheck,
   Clock,
@@ -25,7 +25,7 @@ import { AllergenText } from '@/components/ek/allergen-text'
 import { NutritionTable } from '@/components/ek/nutrition-table'
 import { DiffText } from '@/components/ek/diff-text'
 import { EmptyState } from '@/components/ek/empty-state'
-import { api, notifyDataChanged } from '@/lib/api'
+import { api, onDataChanged, notifyDataChanged } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import { navigate, timeAgo, formatDate } from '@/lib/router'
 import { formatValue } from '@/lib/label'
@@ -245,25 +245,46 @@ function RevisionCard({
   )
 }
 
-export function ProductView({ barcode, me }: { barcode: string; me: MeDTO }) {
+export function ProductView({
+  barcode,
+  me,
+  initialDetail,
+}: {
+  barcode: string
+  me: MeDTO | null
+  /** Server-fetched detail (SSR) — skips the initial client fetch when present. */
+  initialDetail?: ProductDetailDTO
+}) {
   const { t, lang } = useLang()
-  const [detail, setDetail] = useState<ProductDetailDTO | null>(null)
+  const [detail, setDetail] = useState<ProductDetailDTO | null>(initialDetail ?? null)
   const [notFound, setNotFound] = useState(false)
   const [zoom, setZoom] = useState<{ src: string; label: string } | null>(null)
   const [comment, setComment] = useState('')
   const [posting, setPosting] = useState(false)
+  // Stable for this mount: true when hydration starts from server data.
+  const [hasInitial] = useState(initialDetail !== undefined)
+  // Mirror of `detail` for the failure path — avoids stale-closure reads.
+  const detailRef = useRef<ProductDetailDTO | null>(initialDetail ?? null)
 
   const load = useCallback(() => {
     api
       .get<ProductDetailDTO>(`/api/products/${encodeURIComponent(barcode)}`)
       .then((d) => {
+        detailRef.current = d
         setDetail(d)
         setNotFound(false)
       })
-      .catch(() => setNotFound(true))
+      .catch(() => {
+        // With SSR content already on screen, survive transient refresh errors
+        // instead of flipping the whole page to "not found".
+        if (!detailRef.current) setNotFound(true)
+      })
   }, [barcode])
 
-  useEffect(load, [load, me])
+  useEffect(() => {
+    if (!hasInitial) load()
+    return onDataChanged(load)
+  }, [load, hasInitial])
 
   const addComment = async (e: React.FormEvent) => {
     e.preventDefault()

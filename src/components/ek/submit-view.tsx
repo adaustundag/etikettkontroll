@@ -95,6 +95,7 @@ export function SubmitView({
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<SubmitResult | null>(null)
   const [ocrBusy, setOcrBusy] = useState(false)
+  const [ocrAvailable, setOcrAvailable] = useState(true)
   const [scanOpen, setScanOpen] = useState(false)
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -141,6 +142,14 @@ export function SubmitView({
     if (barcodeParam) void checkBarcode(barcodeParam)
      
   }, [barcodeParam])
+
+  // Hide the auto-fill shortcut when no vision provider is configured server-side.
+  useEffect(() => {
+    api
+      .get<{ available: boolean }>('/api/ocr')
+      .then((r) => setOcrAvailable(r.available))
+      .catch(() => setOcrAvailable(false))
+  }, [])
 
   // Camera scan → fill the barcode and run the existing-product check.
   const onScan = (code: string) => {
@@ -382,17 +391,19 @@ export function SubmitView({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label htmlFor="p-ingredients">{t('submit.ingredients')}</Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={!form.ingredientsImage || ocrBusy}
-                  onClick={() => void autofill()}
-                  className="h-7 text-xs"
-                >
-                  {ocrBusy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden /> : <Sparkles className="mr-1 h-3 w-3 text-emerald-600" aria-hidden />}
-                  {ocrBusy ? t('submit.autofillLoading') : t('submit.autofill')}
-                </Button>
+                {ocrAvailable && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!form.ingredientsImage || ocrBusy}
+                    onClick={() => void autofill()}
+                    className="h-7 text-xs"
+                  >
+                    {ocrBusy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" aria-hidden /> : <Sparkles className="mr-1 h-3 w-3 text-emerald-600" aria-hidden />}
+                    {ocrBusy ? t('submit.autofillLoading') : t('submit.autofill')}
+                  </Button>
+                )}
               </div>
               <Textarea
                 id="p-ingredients"
@@ -419,17 +430,19 @@ export function SubmitView({
                     />
                   </div>
                 ))}
-                <div className="space-y-1">
-                  <Label htmlFor="n-serving" className="text-xs">{t('product.servingSize')}</Label>
-                  <Input
-                    id="n-serving"
-                    value={form.servingSize}
-                    onChange={(e) => set('servingSize', e.target.value)}
-                    placeholder="100 g"
-                    className="h-9"
-                  />
-                </div>
               </div>
+            </div>
+
+            <div className="space-y-1.5 rounded-xl border bg-muted/30 p-3">
+              <Label htmlFor="p-serving">{t('submit.servingSizeOptional')}</Label>
+              <Input
+                id="p-serving"
+                value={form.servingSize}
+                onChange={(e) => set('servingSize', e.target.value)}
+                placeholder="1 kaka (25 g)"
+                className="h-9"
+              />
+              <p className="text-xs text-muted-foreground">{t('submit.servingSizeHint')}</p>
             </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
