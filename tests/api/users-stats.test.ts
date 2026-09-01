@@ -4,7 +4,8 @@ import { GET as userGET } from '@/app/api/users/[id]/route'
 import { GET as statsGET } from '@/app/api/stats/route'
 import { GET as healthGET } from '@/app/api/route'
 import { db } from '@/lib/db'
-import { req, withParams } from '../setup'
+import { createToken } from '@/lib/auth'
+import { mockAuth, req, withParams } from '../setup'
 import { mkPending, mkProduct, mkUser, wipeDb } from '../fixtures'
 
 beforeEach(async () => {
@@ -31,7 +32,7 @@ describe('GET /api/users/[id] — public profile', () => {
     expect(res.status).toBe(200)
     const dto = (await res.json()) as {
       user: { id: string; name: string; karma: number; trustLevel: number; trustLabel: string }
-      email: string
+      email?: string
       createdAt: string
       reviewsCast: number
       contributions: { id: string; barcode: string; reviews: { verdict: string; comment: string | null }[] }[]
@@ -40,7 +41,16 @@ describe('GET /api/users/[id] — public profile', () => {
     expect(dto.user.karma).toBe(120)
     expect(dto.user.trustLevel).toBe(2)
     expect(dto.user.trustLabel).toBe('Trusted')
-    expect(dto.email).toBe(reviewer.email)
+    // GDPR regression guard: anonymous viewers must NOT see the address
+    // (was leaked publicly until the hardening pass).
+    expect(dto.email).toBeUndefined()
+
+    // …but the profile owner does see their own address.
+    mockAuth(`Bearer ${createToken(reviewer.id)}`)
+    const selfRes = await userGET(req('GET', `/api/users/${reviewer.id}`), withParams({ id: reviewer.id }))
+    expect(selfRes.status).toBe(200)
+    expect(((await selfRes.json()) as { email?: string }).email).toBe(reviewer.email)
+    mockAuth(null)
     expect(new Date(dto.createdAt).getTime()).toBeTruthy()
     expect(dto.reviewsCast).toBe(1)
     expect(dto.contributions.length).toBeGreaterThanOrEqual(5) // 4 history + 1 pending

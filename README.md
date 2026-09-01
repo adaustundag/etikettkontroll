@@ -43,7 +43,8 @@ bun run test
 - **Volume:** mount at `/data` — the SQLite database and uploaded photos both live there
 - **Variables (one-liners):**
   - `DATABASE_URL=file:/data/db/custom.db?connection_limit=1` — `connection_limit=1` keeps a single SQLite writer connection, avoiding `SQLITE_BUSY` / "database is locked" errors when concurrent submits and reviews collide
-  - `AUTH_SECRET=<openssl rand -hex 32>` — **required in production**; sessions fail closed without it (prevents forgeable tokens from the public dev fallback)
+  - `AUTH_SECRET` — **required in production**: run `openssl rand -hex 32` in a terminal and paste its 64-character hex OUTPUT as the value. Never paste the command itself or `<angle brackets>` — a guessable secret makes every session token forgeable (sessions fail closed without the variable at all)
+  - `APP_URL=https://etikettkontroll-production.up.railway.app` — public origin used to build magic sign-in links (optional; `x-forwarded-*` headers are used as fallback)
   - `HOSTNAME=0.0.0.0`
 - First boot **auto-seeds the demo dataset** when the database is empty (disable with `EK_AUTO_SEED=0`)
 - Security headers (nosniff, Referrer-Policy, HSTS; production also sends frame + camera policies) ship automatically via `next.config.ts` — no configuration needed

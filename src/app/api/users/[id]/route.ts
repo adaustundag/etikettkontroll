@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/auth'
 import { computeTrust } from '@/lib/trust'
 import { mapRevision, revisionInclude } from '@/lib/revisions'
 import type { ProfileDTO } from '@/lib/types'
@@ -10,6 +11,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
   const user = await db.user.findUnique({ where: { id } })
   if (!user) return NextResponse.json({ error: 'User not found.' }, { status: 404 })
+
+  // GDPR hardening: the address belongs to the account holder and must not be
+  // served to other visitors — only the profile owner sees their own email.
+  const viewer = await getSessionUser()
 
   const trust = await computeTrust(user.id)
   const [contributions, reviewsCast] = await Promise.all([
@@ -33,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       trustLevel: trust.level,
       trustLabel: trust.label,
     },
-    email: user.email,
+    ...(viewer?.id === user.id ? { email: user.email } : {}),
     createdAt: user.createdAt.toISOString(),
     reviewsCast,
     contributions: contributions.map(mapRevision),

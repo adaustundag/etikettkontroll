@@ -115,7 +115,8 @@ export type MeDTO = {
 
 export type ProfileDTO = {
   user: PublicUser
-  email: string
+  // present only when the requester is viewing their own profile
+  email?: string
   createdAt: string
   reviewsCast: number
   contributions: RevisionDTO[]

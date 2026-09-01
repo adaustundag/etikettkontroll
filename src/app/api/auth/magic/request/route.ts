@@ -40,6 +40,19 @@ async function sendEmail(to: string, link: string): Promise<boolean> {
   }
 }
 
+// Public origin of this deployment, used to build sign-in links.
+// Priority: explicit APP_URL → proxy headers (Railway/Caddy) → request origin.
+// HOSTNAME/PORT must never be used here: behind a reverse proxy they resolve
+// to 0.0.0.0:<port>, producing dead links (seen live on Railway).
+function publicOrigin(req: NextRequest): string {
+  const appUrl = process.env.APP_URL?.trim()
+  if (appUrl) return appUrl.replace(/\/+$/, '')
+  const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
+  const host = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
+  if (host) return `${proto || 'https'}://${host}`
+  return req.nextUrl.origin
+}
+
 // POST /api/auth/magic/request { email, popup? } — create a one-time sign-in link
 export async function POST(req: NextRequest) {
   // Email-sending + token cost: 10/min per IP (plus the per-email 30s guard below).
@@ -70,15 +83,24 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    const origin = req.nextUrl.origin
+    const origin = publicOrigin(req)
     const popupSuffix = body.popup ? '&popup=1' : ''
     const link = `${origin}/api/auth/magic/verify?token=${token}${popupSuffix}`
 
     const sent = await sendEmail(email, link)
     if (sent) return NextResponse.json({ ok: true, emailed: true })
 
-    // No mail provider configured → dev mode: hand the link back so the flow
-    // stays testable end-to-end until SMTP/Resend keys are added.
+    // No mail provider configured. Handing the sign-in link to whoever asked
+    // would let anyone take over any address, so in production we fail loudly
+    // instead (audit CRITICAL, verified live on Railway). Dev/test keeps the
+    // link in the response so the flow stays scriptable end-to-end.
+    if (process.env.NODE_ENV === 'production') {
+      console.error('magic request: no mail provider configured — sign-in link withheld in production')
+      return NextResponse.json(
+        { error: 'Email sign-in is not configured. Please use another sign-in method.' },
+        { status: 503 },
+      )
+    }
     return NextResponse.json({ ok: true, emailed: false, devLink: link })
   } catch (err) {
     console.error('magic request error', err)
