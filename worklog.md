@@ -343,3 +343,19 @@ Work Log:
 Stage Summary:
 - P1 scope complete: 4 new public pages (3 static + full change log), shared diff engine, mobile drawer, dynamic OG cards. 95/95 tests, lint/tsc clean, browser-verified.
 - Commit pending push (PAT expected revoked — needs fresh token from user), then production probes for the new routes.
+
+---
+Task ID: 25-b
+Agent: Z.ai Code (main agent)
+Task: Push P1 to origin/main + production deploy verification.
+
+Work Log:
+- Pre-push hygiene: dev.pid had been swept into the commit by git add -A -> removed from index, amend, and added dev.pid to .gitignore. Commit rehash 9383b0e -> 7174751.
+- Pushed 0db5bb7..7174751 main -> main with the same PAT (still active — user has not rotated it yet; re-flagged).
+- Deploy marker lesson: /api/og returns 200 text/html on the OLD build too (catch-all serves the SPA shell for unknown paths) — false positive. Correct marker: /api/changes must return JSON, flipped on poll 5 (~2 min).
+- Production probes, all pass: per-page SV titles (Ändringar/Om/Integritet/Så funkar verifiering – EtikettKontroll); /api/changes JSON (14 published revisions, protein 16 g -> 15.8 g diff, hasMore false); sitemap contains all 4 new URLs; /api/og default 152 KB PNG + product card (?barcode=) 138 KB PNG; og:image meta on home + product pointing at the card renderer.
+- Production browser smoke (agent-browser, 375px): Meny drawer opens with all 7 links, Ändringar -> /andringar renders the change log, zero page errors.
+
+Stage Summary:
+- P1 shipped and verified in production: 4 new public pages, /andringar full change log, shared diff engine, mobile drawer, dynamic OG cards. origin/main = 7174751.
+- PAT from chat is STILL ACTIVE — user must revoke it (repeated warning).
