@@ -381,3 +381,20 @@ PENDING (user actions):
 
 Stage Summary:
 - P2 shipped and verified in production. Product pages are crawlable, unknown barcodes 404 correctly, serving size can no longer masquerade as the per-100g basis, OCR is provider-agnostic and degrades to hidden.
+
+---
+Task ID: 27
+Agent: opencode (GLM-5.3-Flash, local)
+Task: P3 — Open Food Facts bootstrap import + homepage/search thumbnail fix.
+
+Work Log:
+- Thumbnail bug (user report, "Lindahls Kvarg has 3 images but no homepage thumb"): root cause was NOT Lindahls-specific — home-view and search-box hardcoded ProductThumb src={null} and the search API only returned a hasImage boolean, so no product ever showed a photo. Fix: /api/products now returns frontImage (latest approved revision); home grid + search dropdown render it; test updated.
+- OFF import (src/lib/off-import.ts): Swedish products via OFF v2 search API (1 req/s etiquette + UA), pure mapOffProduct mapper (sv-name preference, brands[0], kJ->kcal /4.184, sodium*2.5->salt, bounds mirrored from submitRevision, invalid rows skipped by reason). Direct inserts as bot user (off-import@etikettkontroll.se, L3) with status auto_approved + autoNote CC BY-SA 4.0 provenance; front images downloaded to the uploads store (~5-50KB each, throttled). Idempotent: existing barcodes skipped, P2002-race counted.
+- Product page: honest "Importerad fran Open Food Facts" chip when reviewerCount=0 + autoNote (was "Verifierad av 0 granskare" — a lie for imported data).
+- POST /api/admin/import-off (L3-only, 4/min): {startPage, pages<=5, withImages}; scripts/import-off.ts + bun run off:import locally.
+- Deploy friction fixed en route: 502 diagnosis surfaced err.message; OFF search API intermittently 503s (confirmed from local AND Railway) -> offFetchWithRetry (3 attempts, 2s/4s backoff).
+- Production import run: pages 1-4 -> +347 products, +345 images. Prod now: 355 products, sitemap 361 URLs, 20/20 recent grid items with photos, search "kvarg" 10 hits, SSR product pages render imported chip + per-100g table.
+- Tests 106/106 (mapper suite added), lint + tsc clean. Note: one transient test flake observed once (1 fail at 398 expects) — could not reproduce in 3 consecutive runs; worth a dedicated look.
+
+Stage Summary:
+- Cold-start problem addressed: production DB went 8 -> 355 real products with photos, crawlable via sitemap. Imported rows are machine data — clearly labeled, not community-verified.
