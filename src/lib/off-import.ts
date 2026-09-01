@@ -164,6 +164,22 @@ async function saveImage(url: string): Promise<string | null> {
   }
 }
 
+async function offFetchWithRetry(path: string, attempts = 3): Promise<Response> {
+  // OFF's search API intermittently 503s under load — retry with backoff.
+  let lastErr: Error | null = null
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      const res = await offFetch(path)
+      if (res.ok || ![429, 500, 502, 503, 504].includes(res.status)) return res
+      lastErr = new Error(`Open Food Facts returned ${res.status}`)
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err))
+    }
+    if (attempt < attempts) await sleep(2_000 * attempt)
+  }
+  throw lastErr ?? new Error('Open Food Facts request failed')
+}
+
 /**
  * Imports `pages` pages (100 products/page) of Swedish OFF products starting
  * at `startPage`. Existing barcodes are skipped; invalid OFF rows are counted
@@ -184,7 +200,7 @@ export async function importOffPages(opts: { startPage?: number; pages?: number;
   const summary: ImportSummary = { pages, fetched: 0, imported: 0, skippedExisting: 0, skippedInvalid: 0, imagesSaved: 0, invalidReasons: {} }
 
   for (let page = startPage; page < startPage + pages; page++) {
-    const res = await offFetch(`/api/v2/search?countries_tags=sweden&fields=${OFF_FIELDS}&page_size=100&page=${page}`)
+    const res = await offFetchWithRetry(`/api/v2/search?countries_tags=sweden&fields=${OFF_FIELDS}&page_size=100&page=${page}`)
     if (!res.ok) throw new Error(`Open Food Facts returned ${res.status} on page ${page}`)
     const body = (await res.json()) as { products?: OffProduct[] }
     const rows = body.products ?? []
