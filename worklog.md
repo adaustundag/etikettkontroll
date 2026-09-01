@@ -254,3 +254,28 @@ Work Log:
 Stage Summary:
 - After this deploy: takeover + email-leak landmines closed; magic sign-in in production requires RESEND_API_KEY (+ MAIL_FROM, APP_URL recommended) — fails closed with 503 otherwise.
 - User TODO: replace AUTH_SECRET with real openssl output (forge demonstrated against the placeholder remains valid until then).
+
+---
+Task ID: 23
+Agent: Z.ai Code (main agent)
+Task: Execute P0 from EXEC-PLAN.md (user approved with "Go"): routing/SEO foundation, header/nav overhaul, small footer, consumer-first homepage, SV copy pass.
+
+Work Log:
+- Reset stray auto-checkpointer commits (dc3cbf4, 668e9fe) back to fc97242 before starting.
+- Rewrote routing: pure helpers in src/lib/route.ts (parsePath, navigate, currentRoute — no React, server-importable), React bindings in src/lib/router.ts (useRoute with server snapshot via initialRoute prop). Legacy '#/...' links: hash-first route derivation (instant correct view) + deferred URL repair on load/hashchange — early module-scope replaceState was proven (via console instrumentation) to be overridden by Chromium completing the initial fragment navigation.
+- Replaced src/app/page.tsx with src/app/[[...slug]]/page.tsx (single catch-all) + generateMetadata (per-product SV titles from DB, canonical, OG; queue noindex) + src/lib/site.ts (siteUrl from APP_URL, prod fallback).
+- Added src/app/robots.ts (removed conflicting public/robots.txt) + src/app/sitemap.ts (DB-driven, 5000-product cap).
+- New AppLink component (real <a href> + SPA interception); header/footer/home converted.
+- Header: SE|EN toggle (sv first, uppercase labels), Logga in + Skapa konto CTAs; AuthDialog gained initialMode (prop-derived state reset during render pattern). Mobile: icon-only brand <sm, theme toggle hidden <sm, Logga in hidden <sm — kills 375px overflow (verified sw=375 both auth states).
+- Small single-row footer (brand · license · © year, sticky-bottom kept).
+- Homepage consumer-first: search-centered hero, live trust line (sv-SE number formatting), change feed with field-level value chips, product grid above how-it-works, reviewer teaser unchanged.
+- /api/stats extended: per-recent-revision diff vs previous approved/superseded snapshot (8 findFirst queries), image fields excluded, text truncated at 36 chars, units appended (kcal/g); StatsDTO.recent[].changes.
+- i18n: new keys home.trustLine/home.newProduct, non-academic SV title 'Vad står egentligen på etiketten?', EN equivalent; layout metadata fully SV + metadataBase + OG siteName/locale.
+- Browser-verified (agent-browser): SPA nav to real paths, browser back, legacy #/product/... → clean path + product view, search Enter → product, SE/EN toggle persists (localStorage + documentElement.lang), Skapa konto opens signup tab, real registration (Testperson) succeeded, queue auth-gate + moderator login + pending revision reachable, footer natural push-down, no h-scroll 375/1280, zero console errors.
+- Fixed during verification: Next.js server/client boundary error (split route.ts/router.ts), public/robots.txt conflict (500), auth dialog programmatic open mode (render-phase adjustment instead of onOpenChange which doesn't fire for controlled opens).
+- Tests: 92/92 green (3 consecutive runs; one unrelated flake in run 1), lint clean.
+
+Stage Summary:
+- Commit 641e0f1 on main (17 files, +601/−248), NOT pushed — old PAT revoked, awaiting fresh token from user.
+- Local verification complete; production curl probes (deep links 200, OG tags, sitemap) pending post-push.
+- Lesson recorded: Chromium fragment-navigation vs early replaceState; deferred URL repair is the robust pattern.
