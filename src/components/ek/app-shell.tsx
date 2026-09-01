@@ -13,6 +13,10 @@ import { ProductView } from '@/components/ek/product-view'
 import { SubmitView } from '@/components/ek/submit-view'
 import { QueueView } from '@/components/ek/queue-view'
 import { ProfileView } from '@/components/ek/profile-view'
+import { ChangesView } from '@/components/ek/changes-view'
+import { AboutView } from '@/components/ek/about-view'
+import { PrivacyView } from '@/components/ek/privacy-view'
+import { HowView } from '@/components/ek/how-view'
 import type { MeDTO } from '@/lib/types'
 
 function viewKey(route: Route): string {
@@ -75,6 +79,10 @@ function AppShell({ initialRoute }: { initialRoute: Route }) {
             )}
             {route.view === 'queue' && <QueueView me={me} onNeedAuth={() => openAuth('signin')} />}
             {route.view === 'profile' && <ProfileView key={route.param} userId={route.param} meId={me?.id} />}
+            {route.view === 'changes' && <ChangesView />}
+            {route.view === 'about' && <AboutView />}
+            {route.view === 'privacy' && <PrivacyView />}
+            {route.view === 'how' && <HowView />}
           </motion.div>
         )}
       </main>

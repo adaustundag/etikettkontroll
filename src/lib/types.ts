@@ -84,23 +84,37 @@ export type SearchItemDTO = ProductDTO & {
   approvedCount: number
 }
 
+/** One field-level value change chip ("protein: 16 g → 15.8 g"). */
+export type ChangeChip = { field: string; from: string | null; to: string | null }
+
+/** Shared shape of one published revision in a change feed. */
+export type ChangeItemDTO = {
+  id: string
+  productName: string
+  barcode: string
+  version: number
+  status: RevisionStatus
+  userName: string
+  userId: string
+  createdAt: string
+  /** Field-level value changes vs the previous approved snapshot (empty for new products). */
+  changes: ChangeChip[]
+}
+
 export type StatsDTO = {
   products: number
   contributors: number
   pendingCount: number
   approvedCount: number
-  recent: {
-    id: string
-    productName: string
-    barcode: string
-    version: number
-    status: RevisionStatus
-    userName: string
-    userId: string
-    createdAt: string
-    /** Field-level value changes vs the previous approved snapshot (empty for new products). */
-    changes: { field: string; from: string | null; to: string | null }[]
-  }[]
+  recent: ChangeItemDTO[]
+}
+
+/** GET /api/changes — paginated public change stream. */
+export type ChangesDTO = {
+  items: ChangeItemDTO[]
+  page: number
+  /** true when another page exists beyond the returned one */
+  hasMore: boolean
 }
 
 export type MeDTO = {

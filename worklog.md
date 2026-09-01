@@ -320,3 +320,26 @@ Stage Summary:
 - Task 21's critical takeover path is closed in production, verified black-box.
 - Env-var hygiene advice delivered: never paste AUTH_SECRET / DATABASE_URL / RESEND_API_KEY into chat.
 - Remaining pre-launch checklist (user side): RESEND_API_KEY + MAIL_FROM (+ APP_URL) for magic links; rotate the GitHub PAT pasted in chat.
+
+---
+Task ID: 25
+Agent: Z.ai Code (main agent)
+Task: P1 — static pages (/om, /integritet, /sa-funkar-verifiering), /andringar full change stream, mobile drawer, OG images.
+
+Work Log:
+- Router: RouteView extended with 'changes' | 'about' | 'privacy' | 'how'; parsePath maps /andringar, /om, /integritet, /sa-funkar-verifiering.
+- Shared diff engine: src/lib/revision-diff.ts (summarizeChanges + withDiffs) extracted from the stats route; stats route now consumes it — one implementation of field-level value diffs for both feeds.
+- New API GET /api/changes?page=N: published revisions (approved/auto_approved), finalizedAt desc, page size 20, hasMore flag, page clamped to [1,500]; ChangesDTO + ChangeChip/ChangeItemDTO in types.ts.
+- Views: ChangesView (full log, every chip, Visa fler pagination), AboutView, PrivacyView, HowView (flow steps, L0–L3 levels from real rules, conflict policy); shared ChangeRow component used by home feed (maxChips=4) and /andringar (all).
+- Home: "Se alla ändringar" link next to the feed heading.
+- Header: desktop Ändringar nav link; mobile Sheet drawer (7 links: Hem/Lägg till/Granskningskö/Ändringar + Om/Integritet/Så funkar verifiering), closes on navigate, active state.
+- Footer: links row Ändringar · Om · Integritet · Så funkar verifiering + license · © year (still single compact row, sticky bottom).
+- Metadata: per-page SV titles/descriptions/canonicals for the 4 new pages + submit; OG cards via /api/og route handler (default, ?title=&sub=, ?barcode= product cards) wired into layout default og:image + twitter summary_large_image + page-level openGraph (og() helper re-supplies siteName/locale because page openGraph shallow-replaces layout's).
+- LESSON (cost one dev-server crash): file-convention opengraph-image.tsx cannot live inside [[...slug]] — Turbopack panics ("catch all segment must be the last segment"); use a metadata route handler instead.
+- LESSON 2: generateMetadata sees raw URL segments (andringar/om/integritet/sa-funkar-verifiering), not parsed view names.
+- Tests: new tests/api/changes.test.ts (published-only + diff chips + image-field exclusion, 20/page pagination + no overlap, param clamping incl. MAX_PAGE); 95/95 pass (363 expects), eslint clean, tsc clean in src/ (also fixed 3 pre-existing missing type imports from the P0 session: Route in header.tsx + router.ts, changedFields in RevisionLike).
+- Browser walkthrough (agent-browser): home → Se alla ändringar → /andringar with full chips; drawer at 375px opens with all 7 links, Så funkar verifiering navigates + closes; /om content + EN toggle ("Privacy / Account data"); legacy #/integritet → clean URL + right view; footer link → /sa-funkar-verifiering SPA nav; screenshots (andringar, om, drawer) clean; zero console errors, dev.log clean.
+
+Stage Summary:
+- P1 scope complete: 4 new public pages (3 static + full change log), shared diff engine, mobile drawer, dynamic OG cards. 95/95 tests, lint/tsc clean, browser-verified.
+- Commit pending push (PAT expected revoked — needs fresh token from user), then production probes for the new routes.

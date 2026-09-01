@@ -40,9 +40,10 @@ export const metadata: Metadata = {
     siteName: "EtikettKontroll",
     locale: "sv_SE",
     type: "website",
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "EtikettKontroll" }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
   },
   icons: {
     icon: [

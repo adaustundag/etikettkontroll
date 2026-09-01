@@ -4,14 +4,13 @@ import { useEffect, useState } from 'react'
 import { Camera, PenLine, CheckCheck, ArrowRight, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SearchBox } from '@/components/ek/search-box'
 import { ProductThumb } from '@/components/ek/product-thumb'
 import { AppLink } from '@/components/ek/app-link'
+import { ChangeRow } from '@/components/ek/change-item'
 import { api } from '@/lib/api'
-import { useLang, type TKey } from '@/lib/i18n'
-import { timeAgo } from '@/lib/router'
+import { useLang } from '@/lib/i18n'
 import type { MeDTO, SearchItemDTO, StatsDTO } from '@/lib/types'
 
 export function HomeView({ me }: { me: MeDTO }) {
@@ -84,7 +83,12 @@ export function HomeView({ me }: { me: MeDTO }) {
 
       {/* Change feed — what changed lately */}
       <section className="mt-14" aria-labelledby="recent-title">
-        <h2 id="recent-title" className="text-xl font-semibold tracking-tight">{t('home.recentTitle')}</h2>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 id="recent-title" className="text-xl font-semibold tracking-tight">{t('home.recentTitle')}</h2>
+          <AppLink href="/andringar" className="shrink-0 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400">
+            {t('home.viewAllChanges')}
+          </AppLink>
+        </div>
         {!stats && (
           <div className="mt-4 space-y-2">
             {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -96,46 +100,7 @@ export function HomeView({ me }: { me: MeDTO }) {
         {stats && stats.recent.length > 0 && (
           <ul className="mt-4 divide-y rounded-2xl border bg-card">
             {stats.recent.map((r) => (
-              <li key={r.id} className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <CheckCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <AppLink
-                    href={`/product/${r.barcode}`}
-                    className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-                  >
-                    {r.productName}
-                  </AppLink>
-                  {r.version === 1 ? (
-                    <Badge variant="secondary" className="shrink-0 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      {t('home.newProduct')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="shrink-0">v{r.version}</Badge>
-                  )}
-                  <AppLink
-                    href={`/profile/${r.userId}`}
-                    className="hidden min-w-0 max-w-40 truncate text-xs text-muted-foreground hover:underline sm:block"
-                  >
-                    {r.userName}
-                  </AppLink>
-                  <time className="shrink-0 text-xs text-muted-foreground" dateTime={r.createdAt}>
-                    {timeAgo(r.createdAt, lang)}
-                  </time>
-                </div>
-                {r.version > 1 && r.changes.length > 0 && (
-                  <div className="ml-7 mt-1.5 flex flex-wrap gap-1.5">
-                    {r.changes.slice(0, 4).map((c) => (
-                      <span key={c.field} className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs">
-                        <span className="font-sans text-muted-foreground">{t(`field.${c.field}` as TKey)}:</span>{' '}
-                        {c.from ?? '—'} <span aria-hidden>→</span> {c.to ?? '—'}
-                      </span>
-                    ))}
-                    {r.changes.length > 4 && (
-                      <span className="self-center text-xs text-muted-foreground">+{r.changes.length - 4}</span>
-                    )}
-                  </div>
-                )}
-              </li>
+              <ChangeRow key={r.id} r={r} maxChips={4} />
             ))}
           </ul>
         )}

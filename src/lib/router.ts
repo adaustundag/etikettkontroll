@@ -3,7 +3,7 @@
 // React bindings + formatting helpers on top of the pure router (src/lib/route.ts).
 
 import { useEffect, useSyncExternalStore } from 'react'
-import { currentRoute, parsePath, subscribe } from './route'
+import { currentRoute, parsePath, subscribe, type Route } from './route'
 
 export { navigate, parsePath, type Route, type RouteView } from './route'
 

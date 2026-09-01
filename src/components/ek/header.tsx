@@ -1,10 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ScanBarcode, Plus, ClipboardCheck, Sun, Moon, LogOut, User as UserIcon } from 'lucide-react'
+import { ScanBarcode, Plus, ClipboardCheck, Sun, Moon, LogOut, User as UserIcon, Menu } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useLang } from '@/lib/i18n'
-import { initials, navigate } from '@/lib/router'
+import { initials, navigate, type Route } from '@/lib/router'
 import { AppLink } from '@/components/ek/app-link'
 import { api, onDataChanged } from '@/lib/api'
 import type { MeDTO, StatsDTO } from '@/lib/types'
@@ -35,6 +36,7 @@ export function Header({
   const { t, lang, setLang } = useLang()
   const { resolvedTheme, setTheme } = useTheme()
   const [pendingCount, setPendingCount] = useState(0)
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const fetchPending = useCallback(() => {
     api
@@ -91,6 +93,9 @@ export function Header({
                 {pendingCount}
               </span>
             )}
+          </AppLink>
+          <AppLink href="/andringar" className={navLink(route.view === 'changes')} aria-current={route.view === 'changes' ? 'page' : undefined}>
+            {t('nav.changes')}
           </AppLink>
         </nav>
 
@@ -184,6 +189,56 @@ export function Header({
               </Button>
             </>
           )}
+
+          {/* mobile drawer — full nav incl. info pages */}
+          <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden" aria-label={t('nav.menu')}>
+                <Menu className="h-5 w-5" aria-hidden />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-72">
+              <SheetHeader>
+                <SheetTitle>{t('nav.menu')}</SheetTitle>
+              </SheetHeader>
+              <nav className="mt-2 flex flex-col gap-1 px-2" aria-label="Mobile">
+                {[
+                  { href: '/', key: 'nav.home', active: route.view === 'home' },
+                  { href: '/submit', key: 'nav.add', active: route.view === 'submit' },
+                  { href: '/queue', key: 'nav.queue', active: route.view === 'queue' },
+                  { href: '/andringar', key: 'nav.changes', active: route.view === 'changes' },
+                ].map(({ href, key, active }) => (
+                  <AppLink
+                    key={href}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    aria-current={active ? 'page' : undefined}
+                    className={cn(
+                      'rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      active ? 'bg-accent text-accent-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60',
+                    )}
+                  >
+                    {t(key as 'nav.home')}
+                  </AppLink>
+                ))}
+                <div className="my-2 border-t" role="separator" />
+                {[
+                  { href: '/om', key: 'footer.about' as const },
+                  { href: '/integritet', key: 'footer.privacy' as const },
+                  { href: '/sa-funkar-verifiering', key: 'footer.how' as const },
+                ].map(({ href, key }) => (
+                  <AppLink
+                    key={href}
+                    href={href}
+                    onClick={() => setMenuOpen(false)}
+                    className="rounded-lg px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-accent/60"
+                  >
+                    {t(key)}
+                  </AppLink>
+                ))}
+              </nav>
+            </SheetContent>
+          </Sheet>
         </div>
       </div>
     </header>

@@ -9,6 +9,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: 'daily', priority: 1 },
     { url: `${base}/submit`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${base}/andringar`, changeFrequency: 'daily', priority: 0.6 },
+    { url: `${base}/sa-funkar-verifiering`, changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${base}/om`, changeFrequency: 'monthly', priority: 0.4 },
+    { url: `${base}/integritet`, changeFrequency: 'monthly', priority: 0.3 },
   ]
   try {
     const products = await db.product.findMany({

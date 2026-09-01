@@ -40,6 +40,58 @@ const en = {
   'footer.license': 'User contributions licensed under CC BY-SA 4.0.',
   'footer.madeIn': 'Källkritik för matetiketter.',
 
+  // changes page (/andringar)
+  'nav.changes': 'Changes',
+  'changes.title': 'What changed on the labels?',
+  'changes.subtitle': 'Every published change is reviewed by the community before it lands here. This is the full log.',
+  'changes.empty': 'No published changes yet.',
+  'changes.loadMore': 'Show more',
+  'changes.loading': 'Loading…',
+  'home.viewAllChanges': 'See all changes',
+
+  // footer info links
+  'footer.about': 'About',
+  'footer.privacy': 'Privacy',
+  'footer.how': 'How verification works',
+  'footer.changes': 'Changes',
+
+  // about page (/om)
+  'about.title': 'About EtikettKontroll',
+  'about.intro': 'EtikettKontroll is an open, community-reviewed database of what grocery labels actually say — ingredients, nutrition values and every change to them over time.',
+  'about.whyTitle': 'Why',
+  'about.whyBody': 'Packaging changes quietly: recipes shrink, sugar disappears and reappears, images get greener. Usually nobody notices before the product is already in the basket. We think source criticism belongs on the label too — so every change is recorded, versioned and open.',
+  'about.howTitle': 'The principle',
+  'about.howBody': 'Anyone can submit what a label says. Nothing is published until other contributors have checked the submission against the packaging. The history stays — you can always see what the label said before.',
+  'about.licenseTitle': 'License',
+  'about.licenseBody': 'Contributions are licensed under CC BY-SA 4.0. The database grows with everyone who photographs, transcribes and checks — build on it, with attribution.',
+
+  // privacy page (/integritet)
+  'privacy.title': 'Privacy',
+  'privacy.intro': 'We collect as little as possible: what is needed to run accounts and publish reviewed label data. No analytics, no ad tech, no data sales.',
+  'privacy.accountTitle': 'Account data',
+  'privacy.accountBody': 'We store your name, email address and a hashed password (scrypt). If you sign in with Google or Facebook we store your name, email and provider id. Your karma and contribution history are part of your public profile.',
+  'privacy.contentTitle': 'Your contributions',
+  'privacy.contentBody': 'Submitted label data, photos and comments are published under your username as part of the open database, licensed under CC BY-SA 4.0.',
+  'privacy.cookieTitle': 'Cookies',
+  'privacy.cookieBody': 'One httpOnly session cookie keeps you signed in. It contains no tracking. There are no third-party cookies.',
+  'privacy.rightsTitle': 'Your rights',
+  'privacy.rightsBody': 'You can request a copy of your data or deletion of your account and personal data (GDPR). Published label contributions can be anonymized on request.',
+
+  // how verification works (/sa-funkar-verifiering)
+  'how.title': 'How verification works',
+  'how.intro': 'Nothing reaches the database unchecked. Here is the path from photo to published label — and who gets to do what.',
+  'how.flowTitle': 'The flow',
+  'how.step1': 'Submit — photograph the label, transcribe what it says and send it in.',
+  'how.step2': 'Review — other contributors check the submission against the packaging.',
+  'how.step3': 'Publish — when enough approvals are in, the change goes live with full version history.',
+  'how.levelsTitle': 'Trust levels',
+  'how.l0': 'Newcomer — submissions need 2 approvals before publishing.',
+  'how.l1': 'Contributor — 1 approval is enough; single-field fixes publish instantly.',
+  'how.l2': 'Trusted — publishes instantly and can review others.',
+  'how.l3': 'Moderator — publishes instantly; a single vote decides.',
+  'how.conflictTitle': 'If reviewers disagree',
+  'how.conflictBody': 'A dispute means rejection, never a guess. Anyone can resubmit with better evidence, for example a clearer photo.',
+
   // trust
   'trust.0': 'Newcomer',
   'trust.1': 'Contributor',
@@ -330,6 +382,58 @@ const sv: Record<TKey, string> = {
   'footer.line': 'En öppen, communitygranskad databas för matetiketter.',
   'footer.license': 'Användarbidrag licensieras under CC BY-SA 4.0.',
   'footer.madeIn': 'Peer review for product labels.',
+
+  // changes page (/andringar)
+  'nav.changes': 'Ändringar',
+  'changes.title': 'Vad har ändrats på etiketterna?',
+  'changes.subtitle': 'Varje publicerad ändring är granskad av communityn innan den syns här. Det här är hela loggen.',
+  'changes.empty': 'Inga publicerade ändringar än.',
+  'changes.loadMore': 'Visa fler',
+  'changes.loading': 'Laddar…',
+  'home.viewAllChanges': 'Se alla ändringar',
+
+  // footer info links
+  'footer.about': 'Om',
+  'footer.privacy': 'Integritet',
+  'footer.how': 'Så funkar verifiering',
+  'footer.changes': 'Ändringar',
+
+  // about page (/om)
+  'about.title': 'Om EtikettKontroll',
+  'about.intro': 'EtikettKontroll är en öppen, communitygranskad databas över vad matetiketterna egentligen säger — ingredienser, näringsvärden och alla ändringar över tid.',
+  'about.whyTitle': 'Varför',
+  'about.whyBody': 'Förpackningar förändras i tysthet: recepten krymper, sockret försvinner och kommer tillbaka, bilderna blir grönare. Oftast märker ingen det innan varan redan är i korgen. Vi tycker källkritik hör hemma på etiketten också — därför dokumenteras varje ändring, versionshanteras och öppnas.',
+  'about.howTitle': 'Principen',
+  'about.howBody': 'Vem som helst kan skicka in vad etiketten säger. Inget publiceras förrän andra bidragsgivare kontrollerat uppgifterna mot förpackningen. Historiken sparas — du ser alltid vad etiketten sa tidigare.',
+  'about.licenseTitle': 'Licens',
+  'about.licenseBody': 'Bidragen licensieras under CC BY-SA 4.0. Databasen växer med alla som fotograferar, skriver av och kontrollerar — bygg vidare på den, med referens.',
+
+  // privacy page (/integritet)
+  'privacy.title': 'Integritet',
+  'privacy.intro': 'Vi samlar in så lite som möjligt: det som behövs för konton och publicerad etikettdata. Ingen analys, ingen annonsteknik, ingen försäljning av data.',
+  'privacy.accountTitle': 'Kontouppgifter',
+  'privacy.accountBody': 'Vi lagrar ditt namn, din e-postadress och ett hashat lösenord (scrypt). Loggar du in med Google eller Facebook lagrar vi namn, e-post och leverantörs-id. Din karma och bidragshistorik ingår i din offentliga profil.',
+  'privacy.contentTitle': 'Dina bidrag',
+  'privacy.contentBody': 'Inskickad etikettdata, foton och kommentarer publiceras under ditt användarnamn som del av den öppna databasen, licensierad under CC BY-SA 4.0.',
+  'privacy.cookieTitle': 'Kakor',
+  'privacy.cookieBody': 'En httpOnly-sessioncookie håller dig inloggad. Den spårar ingenting. Det finns inga tredjepartskakor.',
+  'privacy.rightsTitle': 'Dina rättigheter',
+  'privacy.rightsBody': 'Du kan begära utdrag av dina uppgifter eller radering av ditt konto och persondata (GDPR). Publicerade etikettbidrag kan anonymiseras på begäran.',
+
+  // how verification works (/sa-funkar-verifiering)
+  'how.title': 'Så funkar verifiering',
+  'how.intro': 'Ingenting når databasen okontrollerat. Här är vägen från foto till publicerad etikett — och vem som får göra vad.',
+  'how.flowTitle': 'Flödet',
+  'how.step1': 'Skicka in — fota etiketten, skriv av uppgifterna och skicka.',
+  'how.step2': 'Granska — andra bidragsgivare kontrollerar uppgifterna mot förpackningen.',
+  'how.step3': 'Publicera — när tillräckligt många godkänt går ändringen live, med full versionshistorik.',
+  'how.levelsTitle': 'Förtroendenivåer',
+  'how.l0': 'Nybörjare — bidrag kräver 2 godkännanden innan publicering.',
+  'how.l1': 'Bidragsgivare — 1 godkännande räcker; enfält ändringar publiceras direkt.',
+  'how.l2': 'Pålitlig — publicerar direkt och kan granska andra.',
+  'how.l3': 'Moderator — publicerar direkt; en röst räcker.',
+  'how.conflictTitle': 'Om granskarna inte är överens',
+  'how.conflictBody': 'Osams betyder avslag, aldrig en gissning. Vem som helst kan skicka in igen med bättre underlag, till exempel ett tydligare foto.',
 
   // trust
   'trust.0': 'Nybörjare',

@@ -21,8 +21,23 @@ export function Footer() {
             Etikett<span className="text-emerald-600 dark:text-emerald-400">Kontroll</span>
           </span>
         </AppLink>
-        <p className="text-center">{t('footer.license')}</p>
-        <p>© {year} EtikettKontroll</p>
+        <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1" aria-label="Footer">
+          <AppLink href="/andringar" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            {t('footer.changes')}
+          </AppLink>
+          <AppLink href="/om" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            {t('footer.about')}
+          </AppLink>
+          <AppLink href="/integritet" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            {t('footer.privacy')}
+          </AppLink>
+          <AppLink href="/sa-funkar-verifiering" className="hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
+            {t('footer.how')}
+          </AppLink>
+        </nav>
+        <p className="text-center">
+          {t('footer.license')} · © {year} EtikettKontroll
+        </p>
       </div>
     </footer>
   )

@@ -3,7 +3,16 @@
 // client code, so it must stay free of client-only APIs at module scope.
 // Browser-specific calls are guarded with typeof window.
 
-export type RouteView = 'home' | 'product' | 'submit' | 'queue' | 'profile'
+export type RouteView =
+  | 'home'
+  | 'product'
+  | 'submit'
+  | 'queue'
+  | 'profile'
+  | 'changes'
+  | 'about'
+  | 'privacy'
+  | 'how'
 export type Route = { view: RouteView; param: string }
 
 function safeDecode(v: string): string {
@@ -26,6 +35,14 @@ export function parsePath(pathname: string): Route {
       return { view: 'queue', param: '' }
     case 'profile':
       return { view: 'profile', param: safeDecode(param) }
+    case 'andringar':
+      return { view: 'changes', param: '' }
+    case 'om':
+      return { view: 'about', param: '' }
+    case 'integritet':
+      return { view: 'privacy', param: '' }
+    case 'sa-funkar-verifiering':
+      return { view: 'how', param: '' }
     default:
       return { view: 'home', param: '' }
   }

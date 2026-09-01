@@ -61,3 +61,4 @@ db/*.db-shm
 public/uploads/*
 !public/uploads/.gitkeep
 tool-results/
+dev.pid
