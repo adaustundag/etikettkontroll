@@ -303,3 +303,20 @@ Stage Summary:
 - Token hygiene: PAT used only in push commands, never written to disk; user should revoke/rotate it now that it has passed through chat.
 - Standing user TODO unchanged: AUTH_SECRET on Railway is still the README placeholder literal (session forgery proven in Task 21) — replace with real `openssl rand -hex 32` output before public launch.
 - P1 (static pages, /andringar full change stream + revision diff, visual polish/mobile drawer, OG images) awaits user review of P0.
+
+---
+Task ID: 24
+Agent: Z.ai Code (main agent)
+Task: Black-box verification that the user's AUTH_SECRET replacement took effect in production (no secret values shared).
+
+Work Log:
+- User replaced AUTH_SECRET via Railway terminal and asked whether to paste env vars into chat -> advised against (chat = exposed; same rationale as PAT rotation).
+- Crafted two forged session tokens offline (HMAC-SHA256 over base64url {uid,exp}, per src/lib/auth.ts) using a real production uid harvested from the public change feed: one signed with the old README placeholder literal, one with the public dev fallback 'etikettkontroll-dev-secret'. Probe script + tokens in /tmp only, deleted after.
+- Negative probes: both forged tokens rejected by production /api/auth/me (200 + null = anonymous shape; a successful forge returns the user object as in Task 21).
+- Positive control: seeded demo login (anna / demo1234, public demo creds from seed.ts) -> 200 + token; /api/auth/me with bearer -> 200 full session (Anna Ekström, L2 Trusted, karma 142). Sign/verify roundtrip works with the new secret.
+- Conclusion: AUTH_SECRET no longer the placeholder, not the dev fallback, roundtrip healthy. Side effect: all sessions signed with the old placeholder were invalidated (users must sign in again).
+
+Stage Summary:
+- Task 21's critical takeover path is closed in production, verified black-box.
+- Env-var hygiene advice delivered: never paste AUTH_SECRET / DATABASE_URL / RESEND_API_KEY into chat.
+- Remaining pre-launch checklist (user side): RESEND_API_KEY + MAIL_FROM (+ APP_URL) for magic links; rotate the GitHub PAT pasted in chat.
