@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { computeTrust } from '@/lib/trust'
+import { emailVerifiedFor } from '@/lib/verify-email'
 import { mapRevision, revisionInclude } from '@/lib/revisions'
 import type { ProfileDTO } from '@/lib/types'
 
@@ -38,7 +39,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       trustLevel: trust.level,
       trustLabel: trust.label,
     },
-    ...(viewer?.id === user.id ? { email: user.email } : {}),
+    ...(viewer?.id === user.id
+      ? { email: user.email, emailVerified: await emailVerifiedFor({ id: user.id, email: user.email }) }
+      : {}),
     createdAt: user.createdAt.toISOString(),
     reviewsCast,
     contributions: contributions.map(mapRevision),

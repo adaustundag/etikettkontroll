@@ -301,6 +301,8 @@ const en = {
   // profile
   'profile.title': 'Profile',
   'profile.memberSince': 'Member since {date}',
+  'profile.emailUnverified':
+    'Your email is not verified yet. Sign in once with a magic link (passwordless email sign-in) — or connect Google/Facebook — to confirm it.',
   'profile.karmaProgress': '{karma} / {next} karma to {label}',
   'profile.maxLevel': 'Top trust level reached — thank you for guarding the database.',
   'profile.statContributions': 'Submissions',
@@ -662,6 +664,8 @@ const sv: Record<TKey, string> = {
   // profile
   'profile.title': 'Profil',
   'profile.memberSince': 'Medlem sedan {date}',
+  'profile.emailUnverified':
+    'Din e-post är inte bekräftad än. Logga in en gång med magisk länk (lösenordfri inloggning via e-post) — eller koppla Google/Facebook — för att bekräfta den.',
   'profile.karmaProgress': '{karma} / {next} karma till {label}',
   'profile.maxLevel': 'Högsta förtroendenivå nådd — tack för att du vaktar databasen.',
   'profile.statContributions': 'Inlämningar',

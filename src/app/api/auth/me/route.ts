@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { computeTrust } from '@/lib/trust'
+import { emailVerifiedFor } from '@/lib/verify-email'
 import type { MeDTO } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const user = await getSessionUser()
   if (!user) return NextResponse.json(null as MeDTO)
-  const trust = await computeTrust(user.id)
+  const [trust, emailVerified] = await Promise.all([computeTrust(user.id), emailVerifiedFor(user)])
   const me: MeDTO = {
     id: user.id,
     name: user.name,
@@ -19,6 +20,7 @@ export async function GET() {
     approvedCount: trust.approvedCount,
     totalCount: trust.totalCount,
     approvalRate: trust.approvalRate,
+    emailVerified,
   }
   return NextResponse.json(me)
 }

@@ -114,6 +114,12 @@ export function ProfileView({ userId, meId }: { userId: string; meId?: string })
         </CardContent>
       </Card>
 
+      {isSelf && profile.emailVerified === false && (
+        <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+          {t('profile.emailUnverified')}
+        </p>
+      )}
+
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map(({ icon: Icon, label, value }) => (
           <Card key={label} className="rounded-2xl">

@@ -3,55 +3,13 @@ import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { readBoundedJson } from '@/lib/payload'
+import { sendEmail, publicOrigin } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
 const TTL_MS = 15 * 60 * 1000
 const RESEND_INTERVAL_MS = 30 * 1000
 const recent = new Map<string, number>() // email -> last request ts (per-process guard)
-
-function prettyName(email: string): string {
-  const local = email.split('@')[0].replace(/[._-]+/g, ' ').trim()
-  const name = local
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w[0].toUpperCase() + w.slice(1))
-    .join(' ')
-  return (name || 'Member').slice(0, 40)
-}
-
-async function sendEmail(to: string, link: string): Promise<boolean> {
-  const key = process.env.RESEND_API_KEY
-  if (!key) return false
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: process.env.MAIL_FROM || 'EtikettKontroll <onboarding@resend.dev>',
-        to,
-        subject: 'Your EtikettKontroll sign-in link',
-        html: `<p>Hi,</p><p>Click below to sign in to EtikettKontroll. The link works once and expires in 15 minutes.</p><p><a href="${link}">Sign in</a></p><p>If you didn't request this, you can ignore this email.</p>`,
-      }),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}
-
-// Public origin of this deployment, used to build sign-in links.
-// Priority: explicit APP_URL → proxy headers (Railway/Caddy) → request origin.
-// HOSTNAME/PORT must never be used here: behind a reverse proxy they resolve
-// to 0.0.0.0:<port>, producing dead links (seen live on Railway).
-function publicOrigin(req: NextRequest): string {
-  const appUrl = process.env.APP_URL?.trim()
-  if (appUrl) return appUrl.replace(/\/+$/, '')
-  const proto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  const host = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
-  if (host) return `${proto || 'https'}://${host}`
-  return req.nextUrl.origin
-}
 
 // POST /api/auth/magic/request { email, popup? } — create a one-time sign-in link
 export async function POST(req: NextRequest) {
@@ -87,7 +45,11 @@ export async function POST(req: NextRequest) {
     const popupSuffix = body.popup ? '&popup=1' : ''
     const link = `${origin}/api/auth/magic/verify?token=${token}${popupSuffix}`
 
-    const sent = await sendEmail(email, link)
+    const sent = await sendEmail(
+      email,
+      'Your EtikettKontroll sign-in link',
+      `<p>Hi,</p><p>Click below to sign in to EtikettKontroll. The link works once and expires in 15 minutes.</p><p><a href="${link}">Sign in</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+    )
     if (sent) return NextResponse.json({ ok: true, emailed: true })
 
     // No mail provider configured. Handing the sign-in link to whoever asked

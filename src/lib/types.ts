@@ -136,12 +136,15 @@ export type MeDTO = {
   approvedCount: number
   totalCount: number
   approvalRate: number
+  /** Derived: ownership proven via magic-link sign-in or OAuth. */
+  emailVerified: boolean
 } | null
 
 export type ProfileDTO = {
   user: PublicUser
   // present only when the requester is viewing their own profile
   email?: string
+  emailVerified?: boolean
   createdAt: string
   reviewsCast: number
   contributions: RevisionDTO[]
