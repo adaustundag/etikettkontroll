@@ -34,7 +34,12 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   async headers() {
-    return [{ source: "/:path*", headers: [...securityHeaders, ...productionHeaders] }];
+    return [
+      // The service worker script itself must never be sticky — a cached old
+      // sw.js delays update detection after deploys.
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
+      { source: "/:path*", headers: [...securityHeaders, ...productionHeaders] },
+    ];
   },
 };
 

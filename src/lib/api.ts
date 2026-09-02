@@ -72,7 +72,12 @@ export async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers)
   const token = getToken()
   if (token && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${token}`)
-  const res = await fetch(url, { ...init, headers })
+  // Network failures (fetch rejects with TypeError) get a clear, honest
+  // message — the service worker never queues or fakes mutations, so an
+  // offline submit/review is always a hard error, never a silent queue.
+  const res = await fetch(url, { ...init, headers }).catch(() => {
+    throw new Error('Ingen nätverksanslutning — kontrollera att du är online och försök igen.')
+  })
   if (!res.ok) throw new Error(await parseError(res))
   return (await res.json()) as T
 }

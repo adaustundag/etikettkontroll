@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline – EtikettKontroll</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        background: #ffffff;
+        color: #111827;
+      }
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #0b0f0d;
+          color: #f4f4f5;
+        }
+      }
+      main {
+        text-align: center;
+        padding: 2rem;
+        max-width: 28rem;
+      }
+      .dot {
+        width: 3rem;
+        height: 3rem;
+        border-radius: 9999px;
+        background: #059669;
+        color: #ffffff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+        margin-bottom: 1rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0 0 1.25rem;
+        line-height: 1.55;
+        opacity: 0.8;
+      }
+      button {
+        background: #059669;
+        color: #ffffff;
+        border: 0;
+        border-radius: 0.6rem;
+        padding: 0.6rem 1.4rem;
+        font-size: 0.95rem;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #047857;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="dot" aria-hidden="true">📡</div>
+      <h1>Du är offline</h1>
+      <p>
+        Den här sidan behöver nätverk. Produkter du har besökt tidigare kan öppnas
+        även utan uppkoppling — prova sökvägen igen eller försök senare.
+      </p>
+      <button onclick="location.reload()">Försök igen</button>
+    </main>
+  </body>
+</html>

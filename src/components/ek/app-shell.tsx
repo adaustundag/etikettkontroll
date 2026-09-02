@@ -18,6 +18,7 @@ import { AboutView } from '@/components/ek/about-view'
 import { PrivacyView } from '@/components/ek/privacy-view'
 import { HowView } from '@/components/ek/how-view'
 import { SearchView } from '@/components/ek/search-view'
+import { PwaRegister } from '@/components/ek/pwa-register'
 import type { MeDTO, ProductDetailDTO } from '@/lib/types'
 
 function viewKey(route: Route): string {
@@ -120,6 +121,7 @@ export default function AppShellRoot({
 }) {
   return (
     <I18nProvider>
+      <PwaRegister />
       <AppShell initialRoute={initialRoute} initialProduct={initialProduct} />
     </I18nProvider>
   )
