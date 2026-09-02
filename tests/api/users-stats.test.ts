@@ -92,9 +92,20 @@ describe('GET /api/stats — landing page counters', () => {
 })
 
 describe('GET /api — health', () => {
-  test('responds with the hello message', async () => {
+  test('reports ok status with db probe and version', async () => {
     const res = await healthGET()
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ message: 'Hello, world!' })
+    const body = (await res.json()) as {
+      status: string
+      version: string
+      db: { ok: boolean; latencyMs: number; products: number }
+      uptimeSec: number
+      time: string
+    }
+    expect(body.status).toBe('ok')
+    expect(body.version).toBeTruthy()
+    expect(body.db.ok).toBe(true)
+    expect(body.db.products).toBeGreaterThanOrEqual(0)
+    expect(body.uptimeSec).toBeGreaterThanOrEqual(0)
   })
 })

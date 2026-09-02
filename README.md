@@ -9,6 +9,7 @@ Crowdsourced ingredient-label control for groceries — like Open Food Facts, bu
 - Karma levels gate the review workflow: L0 submissions need two approvals (single nutrition-field corrections publish instantly), L1 needs one approval (single-field corrections publish instantly), L2 publishes instantly and may review others, L3 administers. Self-review is always blocked.
 - **Bootstrap:** the first account registered on a fresh deployment automatically becomes an L3 Moderator — otherwise nothing could ever be approved. Machine-imported data (Open Food Facts) is auto-approved with a provenance note instead of occupying the queue.
 - English-first UI, structured so a Swedish language pivot can be added without rework.
+- **Language identity (decided): Swedish-first.** Default language is `sv`; the EN toggle remains as a best-effort translation. Product naming, content and data target the Swedish market.
 
 ## Tech stack
 
