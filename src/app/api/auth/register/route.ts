@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
+import { bootstrapFirstModerator } from '@/lib/trust'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
 
@@ -32,6 +33,8 @@ export async function POST(req: NextRequest) {
       data: { name, email, passwordHash: hashPassword(password) },
       select: { id: true, name: true, email: true },
     })
+    // First account on a fresh deployment becomes the moderator (deadlock relief).
+    await bootstrapFirstModerator(user.id)
 
     // Token goes in the body as well as the cookie: the cookie is dropped in
     // cross-origin iframes (preview panel), the bearer token is not.

@@ -15,6 +15,9 @@ import { Prisma, type ProductRevision } from '@prisma/client'
 
 export class SubmitError extends Error {}
 
+/** Fields where a single-field correction auto-publishes for any trust level. */
+const LOW_RISK_FIELDS: LabelField[] = ['servingSize', 'calories', 'protein', 'carbs', 'sugars', 'fat', 'salt']
+
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
   const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'))
@@ -164,6 +167,17 @@ export async function submitRevision(user: { id: string; name: string }, payload
     status = 'auto_approved'
     requiredApprovals = 0
     autoNote = 'Auto-published: single-field correction by a Contributor'
+  } else if (
+    changedFields.length <= 1 &&
+    // Bootstrap deadlock relief: single nutrition-field corrections are
+    // low-risk (bounded numbers, fully diffable, revertible) and auto-publish
+    // for everyone. Free-text fields (name/brand/ingredients/photos) still
+    // require review — they are the spam vectors.
+    changedFields.every((f) => LOW_RISK_FIELDS.includes(f))
+  ) {
+    status = 'auto_approved'
+    requiredApprovals = 0
+    autoNote = 'Auto-published: single nutrition-field correction'
   }
 
   const result = await db.$transaction(async (tx) => {

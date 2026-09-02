@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
+import { bootstrapFirstModerator } from '@/lib/trust'
 
 /**
  * Hand-rolled OAuth (authorization-code flow) for Google + Facebook, wired
@@ -195,7 +196,7 @@ export async function resolveOAuthUser(provider: string, providerId: string, ema
 
   // 3. brand-new member
   try {
-    return await db.user.create({
+    const user = await db.user.create({
       data: {
         email,
         name,
@@ -203,6 +204,8 @@ export async function resolveOAuthUser(provider: string, providerId: string, ema
         identities: { create: { provider, providerId } },
       },
     })
+    await bootstrapFirstModerator(user.id)
+    return user
   } catch {
     // rare race: someone else created this email meanwhile → link instead
     const user = await db.user.findUnique({ where: { email } })

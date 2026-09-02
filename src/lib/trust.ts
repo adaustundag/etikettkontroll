@@ -43,7 +43,7 @@ export type TrustInfo = {
 }
 
 export async function computeTrust(userId: string): Promise<TrustInfo> {
-  const [user, finalized] = await Promise.all([
+  const [user, finalized, bootstrap] = await Promise.all([
     db.user.findUnique({ where: { id: userId }, select: { karma: true } }),
     // 'superseded' revisions were approved once — they still count as a
     // positive contribution (otherwise trust would decay as history grows).
@@ -51,6 +51,7 @@ export async function computeTrust(userId: string): Promise<TrustInfo> {
       where: { submittedById: userId, status: { in: ['approved', 'auto_approved', 'rejected', 'superseded'] } },
       select: { status: true },
     }),
+    db.karmaEvent.findFirst({ where: { userId, reason: 'bootstrap_moderator' }, select: { id: true } }),
   ])
   const totalCount = finalized.length
   const approvedCount = finalized.filter((r) => r.status !== 'rejected').length
@@ -61,6 +62,8 @@ export async function computeTrust(userId: string): Promise<TrustInfo> {
   if (karma >= TRUST_THRESHOLDS.contributor) level = 1
   if (karma >= TRUST_THRESHOLDS.trusted && approvalRate >= 0.85 && totalCount >= 3) level = 2
   if (karma >= TRUST_THRESHOLDS.moderator && approvalRate >= 0.9 && totalCount >= 5) level = 3
+  // Bootstrap grant survives recomputation (karma alone would demote it).
+  if (bootstrap) level = 3
 
   // Write-back cache so list views can show trust badges without recomputing.
   if (user && user.karma !== undefined) {
@@ -71,6 +74,29 @@ export async function computeTrust(userId: string): Promise<TrustInfo> {
   }
 
   return { level, label: LEVEL_LABELS[level], karma, approvedCount, totalCount, approvalRate }
+}
+
+/**
+ * Deadlock relief for the zero-community phase: the FIRST account on a fresh
+ * deployment becomes a Moderator (L3) — otherwise every submission would pend
+ * forever behind approvals nobody can cast. Best-effort, race-guarded, and
+ * one-time (the bootstrap karma event marks it permanently).
+ */
+export async function bootstrapFirstModerator(userId: string): Promise<boolean> {
+  try {
+    return await db.$transaction(async (tx) => {
+      const existingModerator = await tx.user.findFirst({ where: { trustLevel: 3 }, select: { id: true } })
+      if (existingModerator) return false
+      const alreadyGranted = await tx.karmaEvent.findFirst({ where: { userId, reason: 'bootstrap_moderator' }, select: { id: true } })
+      if (alreadyGranted) return false
+      await tx.user.update({ where: { id: userId }, data: { trustLevel: 3, karma: { increment: TRUST_THRESHOLDS.moderator } } })
+      await tx.karmaEvent.create({ data: { userId, delta: TRUST_THRESHOLDS.moderator, reason: 'bootstrap_moderator' } })
+      return true
+    })
+  } catch (err) {
+    console.error('[trust] bootstrap moderator failed:', err instanceof Error ? err.message : err)
+    return false
+  }
 }
 
 export function requiredApprovalsFor(level: TrustLevel): number {

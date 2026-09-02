@@ -6,7 +6,8 @@ Crowdsourced ingredient-label control for groceries — like Open Food Facts, bu
 
 - Contributors photograph a product label and submit a revision against a barcode-keyed product (GTIN/EAN).
 - Revisions are append-only and immutable: every change is auditable, nothing is silently overwritten. The public page always shows the latest approved revision.
-- Karma levels gate the review workflow: L0 contributors need two approvals for their first five edits, L1 small edits auto-publish, L2 can publish instantly and review others, L3 administers. Self-review is always blocked.
+- Karma levels gate the review workflow: L0 submissions need two approvals (single nutrition-field corrections publish instantly), L1 needs one approval (single-field corrections publish instantly), L2 publishes instantly and may review others, L3 administers. Self-review is always blocked.
+- **Bootstrap:** the first account registered on a fresh deployment automatically becomes an L3 Moderator — otherwise nothing could ever be approved. Machine-imported data (Open Food Facts) is auto-approved with a provenance note instead of occupying the queue.
 - English-first UI, structured so a Swedish language pivot can be added without rework.
 
 ## Tech stack
