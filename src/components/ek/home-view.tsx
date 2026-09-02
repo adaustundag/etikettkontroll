@@ -26,8 +26,8 @@ export function HomeView({ me }: { me: MeDTO | null }) {
         .catch(() => undefined)
     load()
     api
-      .get<SearchItemDTO[]>('/api/products?q=')
-      .then(setRecentProducts)
+      .get<{ items: SearchItemDTO[] }>('/api/products?q=')
+      .then((r) => setRecentProducts(r.items))
       .catch(() => undefined)
     return undefined
   }, [])

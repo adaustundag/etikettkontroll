@@ -17,6 +17,7 @@ import { ChangesView } from '@/components/ek/changes-view'
 import { AboutView } from '@/components/ek/about-view'
 import { PrivacyView } from '@/components/ek/privacy-view'
 import { HowView } from '@/components/ek/how-view'
+import { SearchView } from '@/components/ek/search-view'
 import type { MeDTO, ProductDetailDTO } from '@/lib/types'
 
 function viewKey(route: Route): string {
@@ -27,7 +28,7 @@ export type AuthMode = 'signin' | 'signup'
 
 // Views that render for anonymous visitors and must not wait for the auth
 // probe — they appear in the SSR HTML and paint immediately on slow links.
-const PUBLIC_VIEWS = new Set<Route['view']>(['home', 'product', 'changes', 'about', 'privacy', 'how'])
+const PUBLIC_VIEWS = new Set<Route['view']>(['home', 'product', 'changes', 'about', 'privacy', 'how', 'search'])
 
 function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initialProduct?: ProductDetailDTO }) {
   const route = useRoute(initialRoute)
@@ -94,6 +95,7 @@ function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initi
             {route.view === 'about' && <AboutView />}
             {route.view === 'privacy' && <PrivacyView />}
             {route.view === 'how' && <HowView />}
+            {route.view === 'search' && <SearchView />}
           </motion.div>
         )}
       </main>

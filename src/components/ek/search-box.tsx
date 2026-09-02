@@ -8,12 +8,13 @@ import { useLang } from '@/lib/i18n'
 import { navigate } from '@/lib/router'
 import { ProductThumb } from '@/components/ek/product-thumb'
 import { BarcodeScannerDialog } from '@/components/ek/barcode-scanner'
-import type { SearchItemDTO } from '@/lib/types'
+import type { SearchItemDTO, SearchResponseDTO } from '@/lib/types'
 
 export function SearchBox() {
   const { t } = useLang()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SearchItemDTO[] | null>(null)
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [scanOpen, setScanOpen] = useState(false)
@@ -29,11 +30,13 @@ export function SearchBox() {
     setLoading(true)
     const timer = setTimeout(async () => {
       try {
-        const items = await api.get<SearchItemDTO[]>(`/api/products?q=${encodeURIComponent(q)}`)
-        setResults(items)
+        const res = await api.get<SearchResponseDTO>(`/api/products?q=${encodeURIComponent(q)}`)
+        setResults(res.items)
+        setTotal(res.total)
         setOpen(true)
       } catch {
         setResults([])
+        setTotal(0)
       } finally {
         setLoading(false)
       }
@@ -76,6 +79,7 @@ export function SearchBox() {
           if (e.key === 'Enter') {
             if (results && results.length > 0) go(`product/${results[0].barcode}`)
             else if (isBarcode) go(`product/${query.trim()}`)
+            else go(`sok?q=${encodeURIComponent(query.trim())}`)
           }
           if (e.key === 'Escape') setOpen(false)
         }}
@@ -99,28 +103,42 @@ export function SearchBox() {
       {open && (results !== null || isBarcode) && (
         <div className="absolute z-30 mt-2 w-full overflow-hidden rounded-xl border bg-popover shadow-lg">
           {results && results.length > 0 && (
-            <ul className="max-h-80 overflow-y-auto">
-              {results.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => {
-                      e.preventDefault()
-                      go(`product/${item.barcode}`)
-                    }}
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent"
-                  >
-                    <ProductThumb src={item.frontImage} name={item.name} className="h-10 w-10 shrink-0 rounded-lg text-base" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{item.name}</span>
-                      <span className="block truncate text-xs text-muted-foreground">
-                        {item.brand} · {item.barcode}
+            <>
+              <ul className="max-h-80 overflow-y-auto">
+                {results.map((item) => (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        go(`product/${item.barcode}`)
+                      }}
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-accent"
+                    >
+                      <ProductThumb src={item.frontImage} name={item.name} className="h-10 w-10 shrink-0 rounded-lg text-base" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{item.name}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {item.brand} · {item.barcode}
+                        </span>
                       </span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {total > results.length && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    go(`sok?q=${encodeURIComponent(query.trim())}`)
+                  }}
+                  className="flex w-full items-center justify-center gap-1 border-t px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-accent dark:text-emerald-400"
+                >
+                  {t('search.allResults', { count: total })}
+                </button>
+              )}
+            </>
           )}
           {results && results.length === 0 && (
             <button

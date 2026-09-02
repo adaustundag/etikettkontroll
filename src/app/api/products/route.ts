@@ -4,83 +4,20 @@ import { getSessionUser } from '@/lib/auth'
 import { SubmitError, submitRevision } from '@/lib/revisions'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
+import { searchProducts } from '@/lib/search'
 import type { SubmitPayload, SubmitResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/products?q= — search by barcode or name/brand (case-insensitive)
+// GET /api/products?q=&page=&pageSize= — search (FTS trigram w/ LIKE fallback)
+// or, with an empty q, the recent-products list. Paginated.
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') || '').trim()
-  const take = 20
+  const page = Number(req.nextUrl.searchParams.get('page')) || 1
+  const pageSize = Number(req.nextUrl.searchParams.get('pageSize')) || 20
 
-  let products: Array<{
-    id: string
-    barcode: string
-    name: string
-    brand: string
-    createdAt: Date
-    updatedAt: Date
-    revisions: { frontImage: string | null }[]
-    _count: { revisions: number }
-  }>
-
-  if (q) {
-    // Prisma's `contains` is case-sensitive on SQLite, so match with LIKE
-    // (case-insensitive for ASCII) and then re-hydrate with relations in the
-    // same order. % and _ in the query are treated literally via ESCAPE.
-    const like = `%${q.replace(/[%_\\]/g, '')}%`
-    const rows = await db.$queryRaw<{ id: string }[]>`
-      SELECT id FROM Product
-      WHERE barcode LIKE ${like} OR name LIKE ${like} OR brand LIKE ${like}
-      ORDER BY updatedAt DESC
-      LIMIT ${take}`
-    const ids = rows.map((r) => r.id)
-    const found = await db.product.findMany({
-      where: { id: { in: ids } },
-      include: {
-        revisions: {
-          where: { status: { in: ['approved', 'auto_approved'] } },
-          orderBy: { version: 'desc' },
-          take: 1,
-          select: { frontImage: true },
-        },
-        _count: { select: { revisions: { where: { status: { in: ['approved', 'auto_approved'] } } } } },
-      },
-    })
-    const byId = new Map(found.map((p) => [p.id, p]))
-    products = []
-    for (const id of ids) {
-      const p = byId.get(id)
-      if (p) products.push(p)
-    }
-  } else {
-    products = await db.product.findMany({
-      orderBy: { updatedAt: 'desc' },
-      take,
-      include: {
-        revisions: {
-          where: { status: { in: ['approved', 'auto_approved'] } },
-          orderBy: { version: 'desc' },
-          take: 1,
-          select: { frontImage: true },
-        },
-        _count: { select: { revisions: { where: { status: { in: ['approved', 'auto_approved'] } } } } },
-      },
-    })
-  }
-
-  return NextResponse.json(
-    products.map((p) => ({
-      id: p.id,
-      barcode: p.barcode,
-      name: p.name,
-      brand: p.brand,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
-      frontImage: p.revisions[0]?.frontImage ?? null,
-      approvedCount: p._count.revisions,
-    })),
-  )
+  const result = await searchProducts({ q, page, pageSize })
+  return NextResponse.json(result)
 }
 
 // POST /api/products — create a product (or submit a revision of an existing one)

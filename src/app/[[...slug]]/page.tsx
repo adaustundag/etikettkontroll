@@ -132,6 +132,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  if (view === 'sok') {
+    const description = 'Sök i den granskade databasen — produktnamn, varumärke eller streckkod. Sökningen tål stavfel och matchar även ÅÄÖ.'
+    return {
+      title: 'Sök produkter',
+      description,
+      alternates: { canonical: base('/sok') },
+      openGraph: og('Sök produkter', description, '/sok'),
+    }
+  }
+
   return {}
 }
 

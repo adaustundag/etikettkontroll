@@ -12,6 +12,8 @@ beforeEach(async () => {
   await wipeDb()
 })
 
+type SearchBody = { items: { barcode: string; name: string; brand: string; frontImage: string | null; approvedCount: number }[]; total: number; page: number; pageSize: number; pageCount: number }
+
 describe('GET /api/products — search', () => {
   test('lists products when q is empty', async () => {
     const author = await mkUser()
@@ -21,14 +23,15 @@ describe('GET /api/products — search', () => {
 
     const res = await productsGET(req('GET', '/api/products'))
     expect(res.status).toBe(200)
-    const items = (await res.json()) as { barcode: string; name: string; brand: string; frontImage: string | null; approvedCount: number }[]
-    expect(items.length).toBe(2)
+    const body = (await res.json()) as SearchBody
+    expect(body.items.length).toBe(2)
+    expect(body.total).toBe(2)
     // newest updated first
-    expect(items[0].name).toBe('Kalles Kaviar')
-    expect(items[1].name).toBe('Oatly Barista Oat Drink')
-    expect(items.find((i) => i.name === 'Kalles Kaviar')!.frontImage).toBe('/uploads/x.jpg')
-    expect(items.find((i) => i.name === 'Oatly Barista Oat Drink')!.frontImage).toBeNull()
-    expect(items.every((i) => i.approvedCount === 1)).toBe(true)
+    expect(body.items[0].name).toBe('Kalles Kaviar')
+    expect(body.items[1].name).toBe('Oatly Barista Oat Drink')
+    expect(body.items.find((i) => i.name === 'Kalles Kaviar')!.frontImage).toBe('/uploads/x.jpg')
+    expect(body.items.find((i) => i.name === 'Oatly Barista Oat Drink')!.frontImage).toBeNull()
+    expect(body.items.every((i) => i.approvedCount === 1)).toBe(true)
   })
 
   test('search is case-insensitive on name and brand', async () => {
@@ -37,12 +40,12 @@ describe('GET /api/products — search', () => {
     await mkProduct({ name: 'Kalles Kaviar', brand: 'Kalles', authorId: author.id })
 
     const res = await productsGET(req('GET', '/api/products?q=oatly'))
-    const items = (await res.json()) as { barcode: string }[]
-    expect(items.length).toBe(1)
-    expect(items[0].barcode).toBe(p.product.barcode)
+    const body = (await res.json()) as SearchBody
+    expect(body.items.length).toBe(1)
+    expect(body.items[0].barcode).toBe(p.product.barcode)
 
     const res2 = await productsGET(req('GET', '/api/products?q=KALLE'))
-    const items2 = (await res2.json()) as { name: string }[]
+    const items2 = ((await res2.json()) as SearchBody).items
     expect(items2.length).toBe(1)
     expect(items2[0].name).toBe('Kalles Kaviar')
   })
@@ -52,13 +55,13 @@ describe('GET /api/products — search', () => {
     const p = await mkProduct({ name: 'Wasa Filo', brand: 'Wasa', barcode: '7300401234567', authorId: author.id })
 
     const full = await productsGET(req('GET', `/api/products?q=${p.product.barcode}`))
-    expect(((await full.json()) as { barcode: string }[]).length).toBe(1)
+    expect(((await full.json()) as SearchBody).items.length).toBe(1)
 
     const partial = await productsGET(req('GET', '/api/products?q=4012345'))
-    expect(((await partial.json()) as { barcode: string }[]).length).toBe(1)
+    expect(((await partial.json()) as SearchBody).items.length).toBe(1)
 
     const none = await productsGET(req('GET', '/api/products?q=9999999'))
-    expect(await none.json()).toEqual([])
+    expect(((await none.json()) as SearchBody).items).toEqual([])
   })
 
   test('SQL wildcards in q are treated literally', async () => {
@@ -68,9 +71,70 @@ describe('GET /api/products — search', () => {
 
     // "50%" must not become a LIKE wildcard — it should find only the one product
     const res = await productsGET(req('GET', '/api/products?q=50%'))
-    const items = (await res.json()) as { name: string }[]
+    const items = ((await res.json()) as SearchBody).items
     expect(items.length).toBe(1)
     expect(items[0].name).toBe('Oatly 50% Less Sugar')
+  })
+
+  test('swedish diacritics are case-insensitive (the MJÖLK bug)', async () => {
+    const author = await mkUser()
+    const p = await mkProduct({ name: 'Arla Ko Mellanmjölk 3%', brand: 'Arla', authorId: author.id })
+    await mkProduct({ name: 'Kalles Kaviar', brand: 'Kalles', authorId: author.id })
+
+    // Uppercase diacritics used to match nothing (SQLite LIKE folds ASCII only)
+    const upper = await productsGET(req('GET', '/api/products?q=MJÖLK'))
+    const upperBody = (await upper.json()) as SearchBody
+    expect(upperBody.items.length).toBe(1)
+    expect(upperBody.items[0].barcode).toBe(p.product.barcode)
+
+    // Diacritics-free query still finds diacritic-bearing names
+    const plain = await productsGET(req('GET', '/api/products?q=mjolk'))
+    expect(((await plain.json()) as SearchBody).items.length).toBe(1)
+  })
+
+  test('multi-token queries require all tokens', async () => {
+    const author = await mkUser()
+    await mkProduct({ name: 'Kalles Kaviar Original', brand: 'Kalles', authorId: author.id })
+    await mkProduct({ name: 'Wasa Fullkorn Knäckebröd', brand: 'Wasa', authorId: author.id })
+
+    const both = await productsGET(req('GET', '/api/products?q=kalles%20kaviar'))
+    expect(((await both.json()) as SearchBody).items.length).toBe(1)
+
+    const disjoint = await productsGET(req('GET', '/api/products?q=kalles%20wasa'))
+    expect(((await disjoint.json()) as SearchBody).items.length).toBe(0)
+  })
+
+  test('tolerates small typos when strict matching finds nothing', async () => {
+    const author = await mkUser()
+    const p = await mkProduct({ name: 'Garant Ekologiska Havreflingor', brand: 'Garant', authorId: author.id })
+
+    // dropped/changed letter inside a long word — trigram strict path misses,
+    // the fuzzy pass recovers within the edit-distance budget
+    const typo = await productsGET(req('GET', '/api/products?q=havreflingot'))
+    const typoBody = (await typo.json()) as SearchBody
+    expect(typoBody.items.length).toBe(1)
+    expect(typoBody.items[0].barcode).toBe(p.product.barcode)
+
+    const typo2 = await productsGET(req('GET', '/api/products?q=ekologiska'))
+    expect(((await typo2.json()) as SearchBody).items.length).toBe(1)
+  })
+
+  test('pagination: page, pageSize and pageCount', async () => {
+    const author = await mkUser()
+    for (let i = 1; i <= 25; i++) {
+      await mkProduct({ name: `Bulk Test Product ${i}`, brand: 'BulkCo', authorId: author.id })
+    }
+    const p1 = await productsGET(req('GET', '/api/products?q=bulk%20test%20product'))
+    const b1 = (await p1.json()) as SearchBody
+    expect(b1.total).toBe(25)
+    expect(b1.page).toBe(1)
+    expect(b1.pageCount).toBe(2)
+    expect(b1.items.length).toBe(20)
+
+    const p2 = await productsGET(req('GET', '/api/products?q=bulk%20test%20product&page=2'))
+    const b2 = (await p2.json()) as SearchBody
+    expect(b2.page).toBe(2)
+    expect(b2.items.length).toBe(5)
   })
 })
 

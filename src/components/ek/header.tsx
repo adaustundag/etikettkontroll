@@ -97,6 +97,9 @@ export function Header({
           <AppLink href="/andringar" className={navLink(route.view === 'changes')} aria-current={route.view === 'changes' ? 'page' : undefined}>
             {t('nav.changes')}
           </AppLink>
+          <AppLink href="/sok" className={navLink(route.view === 'search')} aria-current={route.view === 'search' ? 'page' : undefined}>
+            {t('nav.search')}
+          </AppLink>
         </nav>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -207,6 +210,7 @@ export function Header({
                   { href: '/submit', key: 'nav.add', active: route.view === 'submit' },
                   { href: '/queue', key: 'nav.queue', active: route.view === 'queue' },
                   { href: '/andringar', key: 'nav.changes', active: route.view === 'changes' },
+                  { href: '/sok', key: 'nav.search', active: route.view === 'search' },
                 ].map(({ href, key, active }) => (
                   <AppLink
                     key={href}

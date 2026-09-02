@@ -85,6 +85,14 @@ export type SearchItemDTO = ProductDTO & {
   approvedCount: number
 }
 
+export type SearchResponseDTO = {
+  items: SearchItemDTO[]
+  total: number
+  page: number
+  pageSize: number
+  pageCount: number
+}
+
 /** One field-level value change chip ("protein: 16 g → 15.8 g"). */
 export type ChangeChip = { field: string; from: string | null; to: string | null }
 
