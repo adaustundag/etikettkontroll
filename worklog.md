@@ -363,7 +363,7 @@ Stage Summary:
 ---
 Task ID: 26
 Agent: opencode (GLM-5.3-Flash, local)
-Task: P2 — crawlable SSR product pages, serving-size UX fix, provider-agnostic OCR, production verification.
+Task: P2 ï¿½ crawlable SSR product pages, serving-size UX fix, provider-agnostic OCR, production verification.
 
 Work Log:
 - SSR: new src/lib/product-detail.ts (shared server loader); catch-all page server-fetches product detail, passes initialProduct into the shell, calls notFound() for unknown barcodes (real HTTP 404, Swedish not-found.tsx). Public views (home/product/changes/about/privacy/how) render without waiting for the auth probe.
@@ -371,13 +371,13 @@ Work Log:
 - OCR: z-ai-web-dev-sdk removed; /api/ocr is now any OpenAI-compatible vision endpoint via fetch (OCR_API_KEY / OCR_BASE_URL / OCR_MODEL). GET /api/ocr availability probe; submit wizard hides the auto-fill button when unset. Tests rewritten to mock fetch (no live provider calls).
 - Seed: production no longer auto-seeds the demo dataset (EK_AUTO_SEED=1 opt-in; dev unchanged).
 - Verified locally: 100/100 tests, eslint clean, tsc clean (src), SSR content + 404 confirmed on a live dev server.
-- Deployed (9b3a788) and verified in production: SSR name+ingredients in raw HTML, serving-size row in HTML, /product/0000000000000 -> 404, robots/sitemap/OG OK, demo data intact (8 products — user added one).
+- Deployed (9b3a788) and verified in production: SSR name+ingredients in raw HTML, serving-size row in HTML, /product/0000000000000 -> 404, robots/sitemap/OG OK, demo data intact (8 products ï¿½ user added one).
 - Docs: Gemini documented as recommended OCR provider (277a0f2).
 
 PENDING (user actions):
 - [ ] Create Gemini API key at https://aistudio.google.com (Get API key) and set on Railway: OCR_API_KEY, OCR_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai, OCR_MODEL=gemini-2.5-flash. Then re-verify /api/ocr -> available:true + one live auto-fill.
-- [ ] User is still playing with the demo dataset — when done: point DATABASE_URL at a fresh file (e.g. file:/data/db/prod.db?connection_limit=1) to wipe it; prod no longer re-seeds.
-- [ ] REPEAT WARNING from Task 25-b: the chat-supplied PAT is still active — revoke it at github.com/settings/tokens.
+- [ ] User is still playing with the demo dataset ï¿½ when done: point DATABASE_URL at a fresh file (e.g. file:/data/db/prod.db?connection_limit=1) to wipe it; prod no longer re-seeds.
+- [ ] REPEAT WARNING from Task 25-b: the chat-supplied PAT is still active ï¿½ revoke it at github.com/settings/tokens.
 
 Stage Summary:
 - P2 shipped and verified in production. Product pages are crawlable, unknown barcodes 404 correctly, serving size can no longer masquerade as the per-100g basis, OCR is provider-agnostic and degrades to hidden.
@@ -385,19 +385,19 @@ Stage Summary:
 ---
 Task ID: 27
 Agent: opencode (GLM-5.3-Flash, local)
-Task: P3 — Open Food Facts bootstrap import + homepage/search thumbnail fix.
+Task: P3 ï¿½ Open Food Facts bootstrap import + homepage/search thumbnail fix.
 
 Work Log:
-- Thumbnail bug (user report, "Lindahls Kvarg has 3 images but no homepage thumb"): root cause was NOT Lindahls-specific — home-view and search-box hardcoded ProductThumb src={null} and the search API only returned a hasImage boolean, so no product ever showed a photo. Fix: /api/products now returns frontImage (latest approved revision); home grid + search dropdown render it; test updated.
+- Thumbnail bug (user report, "Lindahls Kvarg has 3 images but no homepage thumb"): root cause was NOT Lindahls-specific ï¿½ home-view and search-box hardcoded ProductThumb src={null} and the search API only returned a hasImage boolean, so no product ever showed a photo. Fix: /api/products now returns frontImage (latest approved revision); home grid + search dropdown render it; test updated.
 - OFF import (src/lib/off-import.ts): Swedish products via OFF v2 search API (1 req/s etiquette + UA), pure mapOffProduct mapper (sv-name preference, brands[0], kJ->kcal /4.184, sodium*2.5->salt, bounds mirrored from submitRevision, invalid rows skipped by reason). Direct inserts as bot user (off-import@etikettkontroll.se, L3) with status auto_approved + autoNote CC BY-SA 4.0 provenance; front images downloaded to the uploads store (~5-50KB each, throttled). Idempotent: existing barcodes skipped, P2002-race counted.
-- Product page: honest "Importerad fran Open Food Facts" chip when reviewerCount=0 + autoNote (was "Verifierad av 0 granskare" — a lie for imported data).
+- Product page: honest "Importerad fran Open Food Facts" chip when reviewerCount=0 + autoNote (was "Verifierad av 0 granskare" ï¿½ a lie for imported data).
 - POST /api/admin/import-off (L3-only, 4/min): {startPage, pages<=5, withImages}; scripts/import-off.ts + bun run off:import locally.
 - Deploy friction fixed en route: 502 diagnosis surfaced err.message; OFF search API intermittently 503s (confirmed from local AND Railway) -> offFetchWithRetry (3 attempts, 2s/4s backoff).
 - Production import run: pages 1-4 -> +347 products, +345 images. Prod now: 355 products, sitemap 361 URLs, 20/20 recent grid items with photos, search "kvarg" 10 hits, SSR product pages render imported chip + per-100g table.
-- Tests 106/106 (mapper suite added), lint + tsc clean. Note: one transient test flake observed once (1 fail at 398 expects) — could not reproduce in 3 consecutive runs; worth a dedicated look.
+- Tests 106/106 (mapper suite added), lint + tsc clean. Note: one transient test flake observed once (1 fail at 398 expects) ï¿½ could not reproduce in 3 consecutive runs; worth a dedicated look.
 
 Stage Summary:
-- Cold-start problem addressed: production DB went 8 -> 355 real products with photos, crawlable via sitemap. Imported rows are machine data — clearly labeled, not community-verified.
+- Cold-start problem addressed: production DB went 8 -> 355 real products with photos, crawlable via sitemap. Imported rows are machine data ï¿½ clearly labeled, not community-verified.
 
 ---
 Task ID: 28
@@ -415,3 +415,26 @@ Work Log:
 
 Stage Summary:
 - Search is now Swedish-grade and typo-tolerant; zero-community deployments can bootstrap moderation; email verification derived without migration; health check is real. origin/main = HEAD.
+
+---
+Task ID: 29
+Agent: opencode (GLM-5.3-Flash, local)
+Task: P5 â€” PWA Phase B: hand-rolled service worker, offline fallback, dev-guarded registration. (Phase A â€” manifest.webmanifest, icon set 192/512 + maskable, apple-touch-icon, theme-color â€” had already shipped with the P1 SEO work; verified rather than rebuilt.)
+
+Work Log:
+- public/sw.js (plain JS, ~5.6KB): caching contract is narrow by design â€” /api/* is passed through untouched (never cached, not even on failure, non-negotiable); /_next/static + /icons + favicon/logo/manifest are cache-first (immutable); /uploads/* stale-while-revalidate; GET navigations network-first with successful /product/* pages retained in a bounded pages cache (30 entries, oldest evicted) for offline replay; every non-GET and cross-origin request untouched. Failure ladder for navigations: cached copy of that exact URL â†’ /offline.html â†’ bare 503.
+- Deploy-safety mechanics (the footguns from the plan review): no self.terminating() (not a real API â€” removed from the earlier brief); skipWaiting + clients.claim only; activate keeps current + previous generation of each cache family (ek-static/ek-pages/ek-uploads) and deletes N-2 and older, so tabs opened before a deploy keep working (their hashed chunks are gone from the server after deploy); VERSION constant bumped alongside package.json on every shell-touching deploy.
+- Offline scope held honest: previously visited product pages replay from the bounded cache (SSR HTML from Task 26 carries full label data); home/queue/submit are NOT faked offline. Mutations (submit/review/logout) that fail at the network layer now throw a clear Swedish message from apiFetch ("Ingen nÃ¤tverksanslutning â€” â€¦") instead of the browser's "Failed to fetch"/"Load failed" TypeError text; the SW never queues or replays POSTs.
+- public/offline.html: self-contained (inline CSS, no external refs that could themselves be uncached), sv copy, retry button, dark-mode aware.
+- src/components/ek/pwa-register.tsx: registers /sw.js in production only; in development it actively UNREGISTERS any SW lingering from a previous prod build on the same origin (HMR + cached shell = misery). Mounted in AppShellRoot.
+- next.config.ts: /sw.js gets Cache-Control: no-cache so update detection isn't delayed by a sticky old worker script.
+- Verification: 124/124 tests (448 expects), eslint clean, tsc clean in src/ (only pre-existing examples/ noise). Production build compiles; local note â€” the build script's `cp -r` fails on this Windows box (bun shell lacks cp -r; Railway's Linux build is unaffected) â€” worked around locally with Copy-Item. Local standalone server smoke: /sw.js 200 + no-cache, /offline.html 200, /api health 200 (after db push against the local prod.db copy), home SSR 200, unknown barcode â†’ real 404.
+- Deployed 7cc4178 and verified in production: real sw.js live (application/javascript, no-cache, content-matched â€” first poll returned the SPA shell at 200 text/html, the exact false-positive trap from Task 25-b; marker is content-match, not status), /offline.html 200 with Swedish copy, manifest + /api + home all healthy.
+- HONEST LIMIT: the three browser-level footgun tests (offline reload of a visited product, single-reload update after deploy, /api never served from cache with SW active) require a live SW in a real browser session and were NOT executable in this environment (no agent-browser available); the SW logic was verified by code review + serving/policy probes above. Worth one manual pass in a phone/desktop browser.
+
+Stage Summary:
+- Installable PWA with a minimal, safe offline story: product pages you have visited keep working offline, nothing else fakes it, API data is never stale by construction. origin/main = HEAD.
+
+PENDING (user actions):
+- [ ] Manual browser pass: install to home screen (Android/desktop Chrome), visit 2â€“3 products, toggle airplane mode, reopen a visited product (should render), then submit something (should show the Swedish offline error, not queue).
+- [ ] Standing reminder: bump VERSION in public/sw.js together with package.json on every deploy that changes the app shell.
