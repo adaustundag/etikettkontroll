@@ -398,3 +398,20 @@ Work Log:
 
 Stage Summary:
 - Cold-start problem addressed: production DB went 8 -> 355 real products with photos, crawlable via sitemap. Imported rows are machine data — clearly labeled, not community-verified.
+
+---
+Task ID: 28
+Agent: opencode (GLM-5.3-Flash, local)
+Task: P4 - search upgrade, deadlock mitigation, email verification, health check, language decision, flake hunt.
+
+Work Log:
+- SEARCH (lib/search.ts): FTS5 trigram index over Product(name+brand+barcode), diacritics-normalized (shared char map mirrored in SQL triggers + TS). bun:sqlite loaded via process.getBuiltinModule (bundler-safe). Trigger-synced with Prisma writes; boot-time install in instrumentation; graceful LIKE fallback on any failure. Fixes the MJOLK bug (uppercase diacritics found 0 of 13 products - SQLite LIKE folds ASCII only). Typo tolerance: strict phrase-AND first, then Levenshtein fuzzy pass over the corpus when strict hits 0 (budget: len>=6 -> 2, len>=4 -> 1). /api/products now returns {items,total,page,pageSize,pageCount} with page/pageSize params. New /sok results page (shareable URLs, back-button, pagination, empty-state CTA), nav link (desktop+mobile), sitemap entry, metadata. Search dropdown gained "see all N hits" -> /sok. FOUND EN ROUTE: bun 1.4 Database() throws SQLITE_MISUSE when given an empty options object - getSqlite now passes no options.
+- DEADLOCK MITIGATION: (1) single nutrition-field corrections (calories/protein/carbs/sugars/fat/salt/servingSize) auto-publish at ANY trust level - bounded numbers, fully diffable, revertible; free-text fields still require review. (2) First account registered on a fresh deployment bootstraps to L3 Moderator via a permanent bootstrap_moderator karma event that survives computeTrust recomputation; wired into register/magic/OAuth user creation; race-guarded; idempotent.
+- EMAIL VERIFICATION (derived, no schema change): emailVerifiedFor = has ExternalIdentity (OAuth proves address) OR a used MagicToken for the email (casing-tolerant). Surfaced in /api/auth/me + own profile with an amber unverified banner. Register sends a best-effort confirmation mail when RESEND is configured (60-min single-use link; click = sign in + verify). lib/mail.ts extracted (sendEmail/publicOrigin/mailConfigured).
+- HEALTH: GET /api now probes the DB (latency + product count), reports APP_VERSION + uptime, 503 'degraded' on DB failure (was "Hello, world!").
+- LANGUAGE DECISION: Swedish-first (sv default, EN toggle best-effort) - documented in README.
+- FLAKE HUNT: two transient failures earlier were back-to-back bun test runs sharing db/test.db (process/file overlap); 6/6 + 12+ consecutive clean runs since. Note for CI: fresh DATABASE_URL per run.
+- Verified: 124 tests / 448 expects, eslint clean, tsc clean, dev-server smoke (MJOLK 13 hits, typo recovery, disjoint 0, pagination 2/3, /sok 200).
+
+Stage Summary:
+- Search is now Swedish-grade and typo-tolerant; zero-community deployments can bootstrap moderation; email verification derived without migration; health check is real. origin/main = HEAD.
