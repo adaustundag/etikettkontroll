@@ -18,6 +18,7 @@ import { AboutView } from '@/components/ek/about-view'
 import { PrivacyView } from '@/components/ek/privacy-view'
 import { HowView } from '@/components/ek/how-view'
 import { SearchView } from '@/components/ek/search-view'
+import { BetaView } from '@/components/ek/beta-view'
 import { PwaRegister } from '@/components/ek/pwa-register'
 import type { MeDTO, ProductDetailDTO } from '@/lib/types'
 
@@ -29,7 +30,7 @@ export type AuthMode = 'signin' | 'signup'
 
 // Views that render for anonymous visitors and must not wait for the auth
 // probe — they appear in the SSR HTML and paint immediately on slow links.
-const PUBLIC_VIEWS = new Set<Route['view']>(['home', 'product', 'changes', 'about', 'privacy', 'how', 'search'])
+const PUBLIC_VIEWS = new Set<Route['view']>(['home', 'product', 'changes', 'about', 'privacy', 'how', 'search', 'beta'])
 
 function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initialProduct?: ProductDetailDTO }) {
   const route = useRoute(initialRoute)
@@ -58,6 +59,22 @@ function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initi
     refreshMe()
     return onDataChanged(refreshMe)
   }, [refreshMe])
+
+  // Client-side navigation keeps the document title in sync with the view
+  // (server routes carry their own metadata via generateMetadata).
+  useEffect(() => {
+    const titles: Partial<Record<Route['view'], string>> = {
+      home: 'EtikettKontroll – Vad står egentligen på etiketten?',
+      submit: 'Lägg till produkt – EtikettKontroll',
+      queue: 'Granskningskö – EtikettKontroll',
+      changes: 'Ändringar – EtikettKontroll',
+      about: 'Om – EtikettKontroll',
+      privacy: 'Integritet – EtikettKontroll',
+      how: 'Så funkar verifiering – EtikettKontroll',
+      search: 'Sök produkter – EtikettKontroll',
+    }
+    document.title = titles[route.view] ?? 'EtikettKontroll'
+  }, [route.view])
 
   const signOut = async () => {
     setToken(null)
@@ -97,6 +114,7 @@ function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initi
             {route.view === 'privacy' && <PrivacyView />}
             {route.view === 'how' && <HowView />}
             {route.view === 'search' && <SearchView />}
+            {route.view === 'beta' && <BetaView />}
           </motion.div>
         )}
       </main>

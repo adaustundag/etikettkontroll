@@ -20,6 +20,7 @@ export async function GET() {
     return NextResponse.json({
       status: 'ok',
       version: APP_VERSION,
+      commit: process.env.RAILWAY_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT ?? 'unknown',
       db: { ok: true, latencyMs, products },
       uptimeSec: Math.round((Date.now() - BOOT) / 1000),
       time,

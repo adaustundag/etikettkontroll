@@ -133,7 +133,7 @@ export function Header({
                 onClick={() => setLang(l)}
                 aria-pressed={lang === l}
                 className={cn(
-                  'rounded-md px-1.5 py-1 text-xs font-semibold uppercase transition-colors sm:px-2',
+                  'rounded-md px-2.5 py-2 text-xs font-semibold uppercase transition-colors sm:px-3',
                   lang === l ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >

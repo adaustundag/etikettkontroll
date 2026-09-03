@@ -14,6 +14,7 @@ export type RouteView =
   | 'privacy'
   | 'how'
   | 'search'
+  | 'beta'
 export type Route = { view: RouteView; param: string }
 
 function safeDecode(v: string): string {
@@ -46,6 +47,8 @@ export function parsePath(pathname: string): Route {
       return { view: 'how', param: '' }
     case 'sok':
       return { view: 'search', param: '' }
+    case 'beta':
+      return { view: 'beta', param: '' }
     default:
       return { view: 'home', param: '' }
   }

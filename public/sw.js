@@ -16,10 +16,9 @@
  * hashed chunks no longer exist on the server). Everything older is deleted.
  */
 
-const VERSION = 'v0.2.1';
+const VERSION = 'v0.2.2';
 
 const STATIC_CACHE = `ek-static-${VERSION}`;
-const PAGES_CACHE = `ek-pages-${VERSION}`;
 const UPLOADS_CACHE = `ek-uploads-${VERSION}`;
 
 const PRECACHE_URLS = [
@@ -33,7 +32,6 @@ const PRECACHE_URLS = [
   '/icons/apple-touch-icon.png',
 ];
 
-const PAGES_CACHE_MAX = 30;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -50,12 +48,16 @@ self.addEventListener('activate', (event) => {
       // Keep the current generation + the most recent previous one per family.
       // Deleting every old cache immediately bricks still-open tabs from the
       // last deploy: their chunks are 404 on the server by then.
-      const keep = new Set([STATIC_CACHE, PAGES_CACHE, UPLOADS_CACHE]);
-      const families = { static: [], pages: [], uploads: [] };
+      const keep = new Set([STATIC_CACHE, UPLOADS_CACHE]);
+      const families = { static: [], uploads: [] };
       const names = await caches.keys();
       for (const name of names) {
         const m = name.match(/^ek-(static|pages|uploads)-v(.+)$/);
-        if (m && m[2] !== VERSION) families[m[1]].push({ name, v: m[2] });
+        if (m && m[2] !== VERSION) {
+          // 'pages' family is retired entirely (offline product replay removed).
+          if (m[1] === 'pages') continue;
+          families[m[1]].push({ name, v: m[2] });
+        }
       }
       for (const list of Object.values(families)) {
         list.sort((a, b) => compareVersions(b.v, a.v)); // newest first
@@ -77,7 +79,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return; // never cached — non-negotiable
 
   if (req.mode === 'navigate') {
-    event.respondWith(handleNavigate(req, url));
+    event.respondWith(handleNavigate(req));
     return;
   }
   if (isImmutableAsset(url.pathname)) {
@@ -100,19 +102,16 @@ function isImmutableAsset(pathname) {
   );
 }
 
-async function handleNavigate(req, url) {
+/**
+ * Navigations are NETWORK-ONLY. Cached product facts could present revoked
+ * verification or superseded data as current after going offline — an
+ * unacceptable trade for a verification-branded database (launch-readiness
+ * review §9). Offline navigations get the explicit offline page instead.
+ */
+async function handleNavigate(req) {
   try {
-    const res = await fetch(req);
-    // Cache only successful, public, replayable product pages.
-    if (res && res.ok && url.pathname.startsWith('/product/')) {
-      const cache = await caches.open(PAGES_CACHE);
-      await cache.put(req, res.clone());
-      await trimCache(PAGES_CACHE, PAGES_CACHE_MAX);
-    }
-    return res;
+    return await fetch(req);
   } catch {
-    const cached = await caches.match(req);
-    if (cached) return cached;
     const offline = await caches.match('/offline.html');
     return (
       offline ||
@@ -148,15 +147,6 @@ async function staleWhileRevalidate(req, cacheName) {
     })
     .catch(() => undefined);
   return cached || (await refresh) || new Response('', { status: 504, statusText: 'Offline' });
-}
-
-async function trimCache(cacheName, max) {
-  const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
-  if (keys.length <= max) return;
-  for (const key of keys.slice(0, keys.length - max)) {
-    await cache.delete(key);
-  }
 }
 
 function compareVersions(a, b) {

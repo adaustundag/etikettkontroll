@@ -261,6 +261,8 @@ export function ProductView({
   const [zoom, setZoom] = useState<{ src: string; label: string } | null>(null)
   const [comment, setComment] = useState('')
   const [posting, setPosting] = useState(false)
+  // Unverified imports: raw nutrition/allergen data hidden behind disclosure.
+  const [showRawImport, setShowRawImport] = useState(false)
   // Stable for this mount: true when hydration starts from server data.
   const [hasInitial] = useState(initialDetail !== undefined)
   // Mirror of `detail` for the failure path — avoids stale-closure reads.
@@ -329,6 +331,9 @@ export function ProductView({
   }
 
   const current = detail.current
+  // Unverified = published without review-based verification (OFF imports,
+  // legacy records). Labeled consistently here and in search/feeds/metadata.
+  const unverifiedImport = current?.verificationState === 'unverified'
   const photos: { key: PhotoKey; label: string }[] = current
     ? ([
         ['frontImage', t('product.front')],
@@ -360,13 +365,13 @@ export function ProductView({
             {detail.product.barcode}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {current && detail.reviewerCount > 0 ? (
+            {current?.verificationState === 'verified' ? (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 <BadgeCheck className="h-4 w-4" aria-hidden />
                 {t('product.verified', { count: detail.reviewerCount })}
               </span>
-            ) : current?.autoNote ? (
-              // Machine-imported data: no human reviewers yet — say so honestly.
+            ) : current?.sourceType === 'openfoodfacts' || current?.verificationState === 'unverified' ? (
+              // Structured provenance — never inferred from autoNote text.
               <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
                 <ScanBarcode className="h-4 w-4" aria-hidden />
                 {t('product.imported')}
@@ -413,6 +418,24 @@ export function ProductView({
           )}
           {current && (
             <>
+              {current.verificationState === 'unverified' && (
+                <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40">
+                  <CardContent className="p-4 text-sm text-amber-900 dark:text-amber-200">
+                    <p className="font-semibold">{t('product.unverifiedDataTitle')}</p>
+                    <p className="mt-1">{t('product.unverifiedDataBody')}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-3 border-amber-300 dark:border-amber-800"
+                      onClick={() => setShowRawImport((v) => !v)}
+                      aria-expanded={showRawImport}
+                    >
+                      {showRawImport ? t('product.unverifiedHide') : t('product.unverifiedShow')}
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
               {photos.length > 0 && (
                 <section aria-label={t('product.photos')}>
                   <div className="grid grid-cols-3 gap-3">
@@ -438,34 +461,48 @@ export function ProductView({
                 </section>
               )}
 
-              <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{t('product.ingredients')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <AllergenText text={current.ingredients} />
-                  {allergens.length > 0 && (
-                    <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('product.contains')}:</span>
-                      {allergens.map((a) => (
-                        <Badge key={a} variant="secondary" className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-                          {ALLERGEN_LABELS[a][lang]}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <p className="mt-3 text-xs text-muted-foreground">{t('product.allergenNote')}</p>
-                </CardContent>
-              </Card>
+              {/* Unverified data stays behind an explicit disclosure — and
+                  allergen highlighting never runs on raw imports (the detector
+                  does not support all source languages; a missing match is not
+                  an allergen-free claim). */}
+              {(!unverifiedImport || showRawImport) && (
+                <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{t('product.ingredients')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {unverifiedImport ? (
+                      <p className="whitespace-pre-wrap text-sm text-muted-foreground">{current.ingredients}</p>
+                    ) : (
+                      <>
+                        <AllergenText text={current.ingredients} />
+                        {allergens.length > 0 && (
+                          <div className="mt-4 flex flex-wrap items-center gap-1.5">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('product.contains')}:</span>
+                            {allergens.map((a) => (
+                              <Badge key={a} variant="secondary" className="bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                                {ALLERGEN_LABELS[a][lang]}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <p className="mt-3 text-xs text-muted-foreground">{t('product.allergenNote')}</p>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
-              <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{t('product.nutrition')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <NutritionTable values={current} />
-                </CardContent>
-              </Card>
+              {(!unverifiedImport || showRawImport) && (
+                <Card className="rounded-2xl border-zinc-200 dark:border-zinc-800">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{t('product.nutrition')}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <NutritionTable values={current} />
+                  </CardContent>
+                </Card>
+              )}
 
               <p className="text-xs text-muted-foreground">
                 {t('product.lastUpdated', { date: formatDate(current.finalizedAt ?? current.createdAt, lang) })}

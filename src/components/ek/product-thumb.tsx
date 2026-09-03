@@ -13,13 +13,9 @@ export function ProductThumb({
 }) {
   if (src) {
     return (
-       
-      <img
-        src={src}
-        alt={`Photo of ${name}`}
-        className={cn('object-cover', className)}
-        loading="lazy"
-      />
+      // Decorative: the adjacent link/title carries the product name, so the
+      // accessible name is concise instead of "Photo of <name> <name>".
+      <img src={src} alt="" aria-hidden="true" className={cn('object-cover', className)} loading="lazy" />
     )
   }
   return (

@@ -2,7 +2,7 @@
 
 // React bindings + formatting helpers on top of the pure router (src/lib/route.ts).
 
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { currentRoute, parsePath, subscribe, type Route } from './route'
 
 export { navigate, parsePath, type Route, type RouteView } from './route'
@@ -79,15 +79,34 @@ export function timeAgo(iso: string, lang: 'en' | 'sv'): string {
   const days = Math.round(hours / 24)
   if (Math.abs(days) < 30) return rtf.format(-days, 'day')
   const months = Math.round(days / 30)
-  if (Math.abs(months) < 12) return rtf.format(-months, 'month')
+  if (Math.abs(months) < 12) return rtf.format(-Math.round(months / 12), 'month')
   return rtf.format(-Math.round(months / 12), 'year')
 }
 
+/**
+ * Hydration-safe relative time: SSR and the first client render emit the same
+ * deterministic absolute (UTC) date; the live relative form is swapped in
+ * after hydration. Fixes React error 418 around calendar dates.
+ */
+export function useAgo(iso: string, lang: 'en' | 'sv'): string {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    // async callback — setState never runs synchronously inside the effect
+    const id = requestAnimationFrame(() => setMounted(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  if (!mounted) return formatDate(iso, lang)
+  return timeAgo(iso, lang)
+}
+
 export function formatDate(iso: string, lang: 'en' | 'sv'): string {
+  // timeZone UTC keeps SSR and initial hydration byte-identical regardless of
+  // the viewer's or server's timezone (fixes the calendar-day mismatch).
   return new Intl.DateTimeFormat(lang === 'sv' ? 'sv-SE' : 'en-GB', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'UTC',
   }).format(new Date(iso))
 }
 

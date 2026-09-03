@@ -142,12 +142,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     }
   }
 
+  if (view === 'beta') {
+    const description = 'Öppen beta: granskade matetiketter med spårbar ursprungsdata. Varje ändring bygger på granskad evidens — hjälp oss granska fler.'
+    return {
+      title: 'Öppen beta',
+      description,
+      alternates: { canonical: base('/beta') },
+      openGraph: og('Öppen beta', description, '/beta'),
+    }
+  }
+
   return {}
 }
+
+const KNOWN_VIEWS = new Set([
+  '',
+  'product',
+  'submit',
+  'queue',
+  'profile',
+  'andringar',
+  'om',
+  'integritet',
+  'sa-funkar-verifiering',
+  'sok',
+  'beta',
+])
 
 export default async function AppRoute({ params }: Props) {
   const { slug } = await params
   const route = routeFromSlug(slug)
+
+  // Unknown paths are real 404s — never a silently rendered homepage.
+  if (slug && slug.length > 0 && !KNOWN_VIEWS.has(slug[0])) notFound()
 
   // Product pages are server-rendered with real content so crawlers and
   // no-JS visitors see the actual label data, not an empty shell.

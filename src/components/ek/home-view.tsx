@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Camera, PenLine, CheckCheck, ArrowRight, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ek/empty-state'
 import { SearchBox } from '@/components/ek/search-box'
 import { ProductThumb } from '@/components/ek/product-thumb'
 import { AppLink } from '@/components/ek/app-link'
@@ -17,22 +18,40 @@ export function HomeView({ me }: { me: MeDTO | null }) {
   const { t, lang } = useLang()
   const [stats, setStats] = useState<StatsDTO | null>(null)
   const [recentProducts, setRecentProducts] = useState<SearchItemDTO[]>([])
+  const [loadError, setLoadError] = useState(false)
 
-  useEffect(() => {
-    const load = () =>
-      api
-        .get<StatsDTO>('/api/stats')
-        .then(setStats)
-        .catch(() => undefined)
-    load()
+  const load = useCallback(() => {
+    api
+      .get<StatsDTO>('/api/stats')
+      .then((s) => {
+        setStats(s)
+        setLoadError(false)
+      })
+      .catch(() => setLoadError(true))
     api
       .get<{ items: SearchItemDTO[] }>('/api/products?q=')
       .then((r) => setRecentProducts(r.items))
-      .catch(() => undefined)
-    return undefined
+      .catch(() => setLoadError(true))
   }, [])
 
+  useEffect(() => {
+    load()
+  }, [load])
+
   const fmt = (n: number) => new Intl.NumberFormat(lang === 'sv' ? 'sv-SE' : 'en-GB').format(n)
+
+  if (loadError && !stats) {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-4 py-20">
+        <EmptyState
+          icon={<ClipboardList className="h-6 w-6" aria-hidden />}
+          title={t('home.loadErrorTitle')}
+          body={t('home.loadErrorBody')}
+          action={<Button onClick={load}>{t('home.retry')}</Button>}
+        />
+      </div>
+    )
+  }
 
   const steps = [
     { icon: Camera, title: t('home.how1Title'), body: t('home.how1Body') },

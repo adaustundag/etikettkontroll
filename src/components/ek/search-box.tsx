@@ -93,7 +93,7 @@ export function SearchBox() {
         <button
           type="button"
           onClick={() => setScanOpen(true)}
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           aria-label={t('scanner.title')}
         >
           <ScanBarcode className="h-5 w-5" aria-hidden />

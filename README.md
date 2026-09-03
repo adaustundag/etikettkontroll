@@ -54,3 +54,12 @@ bun run test
 - Backups: the database is a single file under `/data/db` — snapshot the volume
 
 > Demo credentials are for local development only — never use them in production.
+
+## Production operations (Railway)
+
+- **Persistence:** the SQLite database lives at `/data/db/custom.db` and uploads at `/data/uploads` on the attached Railway volume. Both survive redeploys; nothing else is durable.
+- **Migrations:** the deployment uses versioned Prisma migrations. On an existing database that predates the migration history, run ONCE: `DATABASE_URL=<prod-url> npx prisma migrate resolve --applied 0001_baseline`, then `npx prisma migrate deploy` (or add `prisma migrate deploy` to the start command before `bun .next/standalone/server.js`). Never run `db push` against production (`db push` is a dev-only helper; `--accept-data-loss` was removed).
+- **Trust boundary:** demo accounts are disabled via `DATABASE_URL=<prod-url> bun scripts/disable-demo-accounts.ts` (dry-run default, `--apply` to write). Moderator authority is granted ONLY via `bun scripts/promote-moderator.ts <email>` (add `--revoke` to demote). Registration order and karma never confer authority.
+- **Backups:** Railway volume snapshots are the backup mechanism — enable scheduled snapshots in the Railway volume settings. For a point-in-time copy, snapshot the volume while the app is stopped (SQLite consistency) or use `sqlite3 /data/db/custom.db ".backup '/data/db/backup-<date>.db'"` from a one-off shell.
+- **Restore procedure (NOT YET REHEARSED — run a rehearsal before launch):** 1) stop the app service, 2) restore the volume snapshot (or copy the backup file back to `/data/db/custom.db`), 3) start the service, 4) verify `GET /api` reports `status: ok` with the expected product count, 5) spot-check a product page and `/andringar`. Record the rehearsal date and result in this section.
+- **Health:** `GET /api` returns status, app version, deployed commit SHA (`RAILWAY_GIT_COMMIT_SHA`), DB latency and product count; 503 when the database is unreachable.
