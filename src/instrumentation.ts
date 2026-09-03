@@ -1,9 +1,41 @@
 /**
  * Runs once when the Next.js server boots (nodejs runtime only).
- * Fresh deployment convenience: an empty database gets the demo dataset.
+ * - Applies pending versioned migrations (additive-only; non-destructive).
+ *   For a pre-migration-history database the 0001_baseline is auto-resolved
+ *   as applied (its SQL matches the schema that DB already runs) and the
+ *   additive migrations then deploy. `migrate deploy` never drops data.
+ * - Seeds demo data in DEVELOPMENT only.
+ * - Installs the FTS search index.
  */
+import { execSync } from 'child_process'
+
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
+  try {
+    console.log('[boot] applying pending migrations (additive, non-destructive)...')
+    try {
+      execSync('bun x prisma migrate deploy --schema prisma/schema.prisma', {
+        stdio: 'inherit',
+        env: process.env,
+        cwd: process.cwd(),
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('P3005') || msg.includes('P3006')) {
+        // Database predates the migration history → baseline it, then deploy.
+        console.log('[boot] pre-migration database detected — baselining 0001_baseline as applied')
+        execSync('bun x prisma migrate resolve --applied 0001_baseline --schema prisma/schema.prisma', {
+          stdio: 'inherit',
+          env: process.env,
+        })
+        execSync('bun x prisma migrate deploy --schema prisma/schema.prisma', { stdio: 'inherit', env: process.env })
+      } else {
+        throw err
+      }
+    }
+  } catch (err) {
+    console.error('[boot] migration failed:', err instanceof Error ? err.message : err)
+  }
   try {
     const { seedDemoIfEmpty } = await import('@/lib/seed-demo')
     const { seeded } = await seedDemoIfEmpty()
