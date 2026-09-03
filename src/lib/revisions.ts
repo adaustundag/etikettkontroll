@@ -1,5 +1,8 @@
 import { db } from '@/lib/db'
 import { computeTrust, requiredApprovalsFor, type TrustLevel } from '@/lib/trust'
+import { existsSync } from 'fs'
+import path from 'path'
+import { uploadsDir } from '@/lib/uploads'
 import {
   LABEL_FIELDS,
   NUMERIC_FIELDS,
@@ -15,8 +18,69 @@ import { Prisma, type ProductRevision } from '@prisma/client'
 
 export class SubmitError extends Error {}
 
+/** Submitted against a revision that is no longer the canonical current publication. */
+export class SubmitConflict extends Error {
+  constructor(readonly currentRevisionId: string | null) {
+    super('This product changed while you were editing. Please review the current version and resubmit.')
+  }
+}
+
 /** Fields where a single-field correction auto-publishes for any trust level. */
 const LOW_RISK_FIELDS: LabelField[] = ['servingSize', 'calories', 'protein', 'carbs', 'sugars', 'fat', 'salt']
+void LOW_RISK_FIELDS // removed with the T3 bypass cleanup (kept reference-free)
+
+/** Fields whose verification requires the ingredient-list photo as evidence. */
+const INGREDIENT_CLAIM_FIELDS: LabelField[] = ['ingredients', 'ingredientsImage']
+/** Fields whose verification requires the nutrition-table photo as evidence. */
+const NUTRITION_CLAIM_FIELDS: LabelField[] = ['servingSize', 'calories', 'protein', 'carbs', 'sugars', 'fat', 'salt']
+/** Identity/photo claims require the front-of-pack photo. */
+const FRONT_CLAIM_FIELDS: LabelField[] = ['name', 'brand', 'frontImage']
+
+/** An /uploads/ reference is only evidence if the file actually exists on disk. */
+export function evidenceFileExists(ref: string | null | undefined): boolean {
+  if (!ref || !ref.startsWith('/uploads/')) return false
+  const safe = path.basename(ref)
+  return existsSync(path.join(uploadsDir(), safe))
+}
+
+export type EvidenceCoverage = {
+  ingredients: boolean
+  nutrition: boolean
+  front: boolean
+}
+
+/** Which claim groups of a revision are backed by existing, usable evidence files. */
+export function evidenceCoverage(r: {
+  frontImage: string | null
+  ingredientsImage: string | null
+  nutritionImage: string | null
+}): EvidenceCoverage {
+  return {
+    ingredients: evidenceFileExists(r.ingredientsImage),
+    nutrition: evidenceFileExists(r.nutritionImage),
+    front: evidenceFileExists(r.frontImage),
+  }
+}
+
+/**
+ * Verification state, derived — never from autoNote text.
+ *  verified  : a review-based verification finalized (survives superseding)
+ *  rejected  : finalized as rejected
+ *  disputed  : approvals and rejections coexist; blocked until resolved
+ *  pending   : awaiting review
+ *  unverified: published/legacy without review-based verification (imports, legacy)
+ */
+export function verificationState(r: {
+  status: string
+  verifiedAt: Date | string | null
+  disputeStatus: string | null
+}): 'verified' | 'rejected' | 'disputed' | 'pending' | 'unverified' {
+  if (r.verifiedAt) return 'verified'
+  if (r.status === 'rejected') return 'rejected'
+  if (r.disputeStatus === 'disputed') return 'disputed'
+  if (r.status === 'pending') return 'pending'
+  return 'unverified'
+}
 
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
@@ -70,11 +134,51 @@ export function revisionValues(r: ProductRevision): LabelValues {
   }
 }
 
-/** Mark a revision approved, supersede the previous approved one, sync product denormalized fields. */
-export async function publishRevision(tx: Prisma.TransactionClient, revisionId: string) {
+/** Canonical current-publication lookup for a product (pointer first, legacy fallback). */
+export async function currentPublicationFor(
+  client: Prisma.TransactionClient | typeof db,
+  productId: string,
+): Promise<ProductRevision | null> {
+  const product = await client.product.findUnique({ where: { id: productId }, select: { currentRevisionId: true } })
+  if (product?.currentRevisionId) {
+    const ptr = await client.productRevision.findFirst({
+      where: { id: product.currentRevisionId, productId, status: { in: ['approved', 'auto_approved'] } },
+    })
+    if (ptr) return ptr
+  }
+  // Legacy fallback (pre-pointer rows, pre-migration data).
+  return client.productRevision.findFirst({
+    where: { productId, status: { in: ['approved', 'auto_approved'] } },
+    orderBy: { version: 'desc' },
+  })
+}
+
+/**
+ * THE single publication service. Every verified publication path — review
+ * approval and moderator dispute resolution — must finalize through this
+ * transactional helper. It:
+ *   1. verifies the revision is pending (idempotent no-op if already current),
+ *   2. stamps verifiedAt (review-based verification, survives superseding),
+ *   3. supersedes the previous publication WITHOUT touching its verifiedAt —
+ *      earlier verification history is preserved,
+ *   4. moves the canonical Product.currentRevisionId pointer and denormalized
+ *      search fields atomically.
+ * Karma is awarded by the caller via awardKarma (idempotent, event-checked).
+ */
+export async function finalizePublication(tx: Prisma.TransactionClient, revisionId: string): Promise<ProductRevision> {
+  const existing = await tx.productRevision.findUnique({ where: { id: revisionId } })
+  if (!existing) throw new SubmitError('Revision not found.')
+  const product = await tx.product.findUnique({ where: { id: existing.productId }, select: { currentRevisionId: true } })
+  if (existing.status === 'approved' && product?.currentRevisionId === existing.id) {
+    return existing // already the current publication — retry is a no-op
+  }
+  if (existing.status !== 'pending') {
+    throw new SubmitError('Revision is not in a publishable state.')
+  }
+
   const revision = await tx.productRevision.update({
     where: { id: revisionId },
-    data: { status: 'approved', finalizedAt: new Date() },
+    data: { status: 'approved', verifiedAt: new Date(), finalizedAt: new Date() },
   })
   await tx.productRevision.updateMany({
     where: { productId: revision.productId, status: { in: ['approved', 'auto_approved'] }, id: { not: revisionId } },
@@ -82,18 +186,15 @@ export async function publishRevision(tx: Prisma.TransactionClient, revisionId: 
   })
   await tx.product.update({
     where: { id: revision.productId },
-    data: { name: revision.name, brand: revision.brand },
+    data: { name: revision.name, brand: revision.brand, currentRevisionId: revision.id },
   })
   return revision
 }
 
-async function awardKarma(
-  tx: Prisma.TransactionClient,
-  userId: string,
-  delta: number,
-  reason: string,
-  refId: string,
-) {
+/** Idempotent karma award — retries can never double-award. */
+async function awardKarma(tx: Prisma.TransactionClient, userId: string, delta: number, reason: string, refId: string) {
+  const already = await tx.karmaEvent.findFirst({ where: { userId, reason, refId }, select: { id: true } })
+  if (already) return
   await tx.user.update({
     where: { id: userId },
     data: { karma: { increment: delta } },
@@ -102,10 +203,12 @@ async function awardKarma(
 }
 
 /**
- * Option B submission flow:
- *  - L2+ : auto-publish
- *  - L1  : auto-publish single-field corrections, otherwise 1 approval needed
- *  - L0  : 2 approvals needed
+ * Submission flow (launch-readiness T3/T4):
+ *  - every submission is PENDING — there are no auto-publication bypasses for
+ *    label facts (reputation may prioritize review, never substitute for it),
+ *  - the diff baseline is the canonical current publication,
+ *  - an explicit baseRevisionId is stamped; a mismatch with the canonical
+ *    pointer raises SubmitConflict (409) instead of silently overwriting.
  */
 export async function submitRevision(user: { id: string; name: string }, payload: SubmitPayload): Promise<SubmitResult> {
   const barcode = (payload.barcode || '').replace(/\s+/g, '')
@@ -139,46 +242,37 @@ export async function submitRevision(user: { id: string; name: string }, payload
       throw new SubmitError('Label photos must be uploaded through the app first.')
     }
   }
+  if (payload.baseRevisionId !== undefined && payload.baseRevisionId !== null && !/^[a-z0-9]{20,40}$/i.test(payload.baseRevisionId)) {
+    throw new SubmitError('baseRevisionId is malformed.')
+  }
 
-  const trust = await computeTrust(user.id)
+  await computeTrust(user.id) // keeps the cached trust badge fresh for the queue UI
   const product = await db.product.findUnique({ where: { barcode } })
+  if (product?.quarantined) {
+    throw new SubmitError('This record is quarantined and cannot be edited until an operator promotes it.')
+  }
 
-  // For edits: diff against the currently approved revision.
+  // Baseline: the canonical current publication (pointer first, legacy fallback).
+  let base: ProductRevision | null = null
   let changedFields: LabelField[] = [...LABEL_FIELDS]
   if (product) {
-    const currentApproved = await db.productRevision.findFirst({
-      where: { productId: product.id, status: 'approved' },
-      orderBy: { version: 'desc' },
-    })
-    changedFields = computeChangedFields(values, currentApproved ? revisionValues(currentApproved) : null)
+    base = await currentPublicationFor(db, product.id)
+    changedFields = computeChangedFields(values, base ? revisionValues(base) : null)
     if (changedFields.length === 0) {
-      throw new SubmitError('No changes compared to the current approved version.')
+      throw new SubmitError('No changes compared to the current published version.')
+    }
+    // Optimistic concurrency: stale edits must not overwrite newer data.
+    const canonicalId = base?.id ?? null
+    const claimed = payload.baseRevisionId?.trim() || null
+    if (canonicalId && claimed !== canonicalId) {
+      throw new SubmitConflict(canonicalId)
     }
   }
+  const baseRevisionId = product ? (base?.id ?? null) : null
 
-  let status: RevisionStatus = 'pending'
-  let requiredApprovals = requiredApprovalsFor(trust.level)
-  let autoNote: string | null = null
-  if (trust.level >= 2) {
-    status = 'auto_approved'
-    requiredApprovals = 0
-    autoNote = `Auto-published: ${trust.label} contributor`
-  } else if (trust.level === 1 && changedFields.length <= 1) {
-    status = 'auto_approved'
-    requiredApprovals = 0
-    autoNote = 'Auto-published: single-field correction by a Contributor'
-  } else if (
-    changedFields.length <= 1 &&
-    // Bootstrap deadlock relief: single nutrition-field corrections are
-    // low-risk (bounded numbers, fully diffable, revertible) and auto-publish
-    // for everyone. Free-text fields (name/brand/ingredients/photos) still
-    // require review — they are the spam vectors.
-    changedFields.every((f) => LOW_RISK_FIELDS.includes(f))
-  ) {
-    status = 'auto_approved'
-    requiredApprovals = 0
-    autoNote = 'Auto-published: single nutrition-field correction'
-  }
+  // No bypasses: every submission enters review (level only sets the count).
+  const status: RevisionStatus = 'pending'
+  const requiredApprovals = requiredApprovalsFor((await computeTrust(user.id)).level)
 
   const result = await db.$transaction(async (tx) => {
     let productId: string
@@ -208,19 +302,10 @@ export async function submitRevision(user: { id: string; name: string }, payload
         status,
         requiredApprovals,
         changedFields: JSON.stringify(changedFields),
-        autoNote,
-        finalizedAt: status === 'pending' ? null : new Date(),
+        baseRevisionId,
+        finalizedAt: null,
       },
     })
-
-    if (status === 'auto_approved') {
-      await tx.productRevision.updateMany({
-        where: { productId, status: { in: ['approved', 'auto_approved'] }, id: { not: revision.id } },
-        data: { status: 'superseded' },
-      })
-      await tx.product.update({ where: { id: productId }, data: { name: values.name, brand: values.brand } })
-      await awardKarma(tx, user.id, 2, 'revision_approved', revision.id)
-    }
 
     return revision
   })
@@ -230,17 +315,22 @@ export async function submitRevision(user: { id: string; name: string }, payload
     productId: result.productId,
     barcode,
     version: result.version,
-    status: status === 'auto_approved' ? 'auto_approved' : 'pending',
-    autoNote,
+    status: 'pending',
+    autoNote: null,
     requiredApprovals,
   }
 }
 
-export type RevisionWithRelations = ProductRevision & {
-  submittedBy: { id: string; name: string; karma: number; trustLevel?: number }
-  reviews: (ReviewWithReviewer)[]
-  product?: { barcode: string } | null
-}
+export const revisionInclude = {
+  product: { select: { barcode: true, quarantined: true } },
+  submittedBy: { select: { id: true, name: true, karma: true, trustLevel: true } },
+  reviews: {
+    include: { reviewer: { select: { id: true, name: true, karma: true } } },
+    orderBy: { createdAt: 'asc' as const },
+  },
+} satisfies Prisma.ProductRevisionInclude
+
+export type RevisionWithRelations = Prisma.ProductRevisionGetPayload<{ include: typeof revisionInclude }>
 
 export type ReviewWithReviewer = {
   id: string
@@ -297,16 +387,16 @@ export function mapRevision(r: RevisionWithRelations): RevisionDTO {
       createdAt: rev.createdAt.toISOString(),
       reviewer: mapUser(rev.reviewer),
     })),
+    // structured provenance + verification (T2/T7) — autoNote is legacy text only
+    sourceType: (r.sourceType as RevisionDTO['sourceType']) ?? 'human',
+    sourceUrl: r.sourceUrl,
+    verifiedAt: r.verifiedAt ? r.verifiedAt.toISOString() : null,
+    nutritionBasis: (r.nutritionBasis as RevisionDTO['nutritionBasis']) ?? null,
+    baseRevisionId: r.baseRevisionId,
+    disputeStatus: r.disputeStatus,
+    disputeReason: r.disputeReason,
+    verificationState: verificationState(r),
   }
 }
-
-export const revisionInclude = {
-  product: { select: { barcode: true } },
-  submittedBy: { select: { id: true, name: true, karma: true, trustLevel: true } },
-  reviews: {
-    include: { reviewer: { select: { id: true, name: true, karma: true } } },
-    orderBy: { createdAt: 'asc' as const },
-  },
-} satisfies Prisma.ProductRevisionInclude
 
 export type { TrustLevel }

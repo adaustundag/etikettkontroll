@@ -2,6 +2,8 @@
  * Shared test fixtures: database wipe + factories for users, products and
  * revisions. Import AFTER ../setup (which selects the test database).
  */
+import { mkdirSync, writeFileSync } from 'fs'
+import path from 'path'
 import { db } from '@/lib/db'
 import { computeTrust, type TrustInfo } from '@/lib/trust'
 
@@ -105,9 +107,12 @@ export async function mkProduct(
       ingredients: opts.ingredients ?? 'water, salt',
       frontImage: opts.frontImage ?? null,
       status: 'approved',
+      verifiedAt: new Date(), // published = review-verified in the post-T3 model
       finalizedAt: new Date(),
     },
   })
+  // Canonical current-publication pointer (T2/T4).
+  await db.product.update({ where: { id: product.id }, data: { currentRevisionId: revision.id } })
   return { product, revision }
 }
 
@@ -121,6 +126,8 @@ export async function mkPending(
     ingredients?: string
     requiredApprovals?: number
     createdAt?: Date
+    /** Default true: evidence photos (T3 gate) — pass false for no-evidence cases. */
+    evidence?: boolean
   },
 ) {
   const last = await db.productRevision.findFirst({
@@ -128,6 +135,7 @@ export async function mkPending(
     orderBy: { version: 'desc' },
     select: { version: true },
   })
+  const evidence = opts.evidence !== false
   return db.productRevision.create({
     data: {
       productId: opts.productId,
@@ -139,9 +147,35 @@ export async function mkPending(
       status: 'pending',
       requiredApprovals: opts.requiredApprovals ?? 2,
       changedFields: JSON.stringify(['name']),
+      ...(evidence
+        ? {
+            frontImage: await evidencePhoto('front'),
+            ingredientsImage: await evidencePhoto('ingredients'),
+            nutritionImage: await evidencePhoto('nutrition'),
+          }
+        : {}),
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
     },
   })
+}
+
+// --- evidence photos (T3 evidence gate) ---------------------------------------
+const EVIDENCE_DIR = path.join(process.cwd(), 'public', 'uploads')
+const written = new Set<string>()
+
+/** Writes a tiny real file into the uploads dir and returns its /uploads/ URL. */
+export async function evidencePhoto(kind: 'front' | 'ingredients' | 'nutrition'): Promise<string> {
+  const name = `test-${kind}.png`
+  if (!written.has(name)) {
+    mkdirSync(EVIDENCE_DIR, { recursive: true })
+    // 1x1 transparent PNG
+    writeFileSync(
+      path.join(EVIDENCE_DIR, name),
+      Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
+    )
+    written.add(name)
+  }
+  return `/uploads/${name}`
 }
 
 /** Convenience: full submit payload accepted by POST /api/products. */

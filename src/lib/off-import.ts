@@ -29,9 +29,13 @@ const OFF_FIELDS = [
   'nutriments',
   'image_front_small_url',
 ].join(',')
-const BOT_EMAIL = 'off-import@etikettkontroll.se'
+export const BOT_EMAIL = 'off-import@etikettkontroll.se'
 const BOT_NAME = 'Open Food Facts'
-const AUTONOTE = 'Imported from Open Food Facts — data licensed CC BY-SA 4.0'
+// OFF licensing is three-way: the database is ODbL, individual contents fall
+// under the Database Contents License (DbCL), product images are CC BY-SA.
+const AUTONOTE = 'Imported from Open Food Facts'
+const LICENSE_DATA = 'OFF Database Contents License (DbCL v1.0); database licensed ODbL'
+const LICENSE_IMAGES = 'CC BY-SA 4.0 (Open Food Facts contributors)'
 
 const BARCODE_RE = /^\d{8,14}$/
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
@@ -232,6 +236,7 @@ export async function importOffPages(opts: { startPage?: number; pages?: number;
             barcode: d.barcode,
             name: d.name,
             brand: d.brand,
+            quarantined: false,
             revisions: {
               create: {
                 version: 1,
@@ -247,14 +252,32 @@ export async function importOffPages(opts: { startPage?: number; pages?: number;
                 fat: d.fat,
                 salt: d.salt,
                 frontImage: frontImage ? `/uploads/${frontImage}` : null,
+                // Imported records are the current publication but explicitly
+                // UNVERIFIED — only review-based verification stamps verifiedAt.
                 status: 'auto_approved',
                 requiredApprovals: 0,
                 autoNote: AUTONOTE,
                 finalizedAt: new Date(),
+                sourceType: 'openfoodfacts',
+                sourceId: d.barcode,
+                sourceUrl: `https://world.openfoodfacts.org/product/${d.barcode}`,
+                importedAt: new Date(),
+                licenseData: LICENSE_DATA,
+                licenseImages: LICENSE_IMAGES,
               },
             },
           },
         })
+        // Canonical current-publication pointer for the fresh import.
+        const created = await db.product.findUnique({ where: { barcode: d.barcode }, select: { id: true } })
+        if (created) {
+          const rev = await db.productRevision.findFirst({
+            where: { productId: created.id },
+            orderBy: { version: 'desc' },
+            select: { id: true },
+          })
+          if (rev) await db.product.update({ where: { id: created.id }, data: { currentRevisionId: rev.id } })
+        }
         existing.add(d.barcode)
         summary.imported++
       } catch (err) {

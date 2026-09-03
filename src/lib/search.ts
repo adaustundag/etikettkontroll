@@ -136,7 +136,7 @@ const PRODUCT_INCLUDE = {
     where: { status: { in: APPROVED } },
     orderBy: { version: 'desc' as const },
     take: 1,
-    select: { frontImage: true },
+    select: { frontImage: true, verifiedAt: true, sourceType: true },
   },
   _count: { select: { revisions: { where: { status: { in: APPROVED } } } } },
 }
@@ -150,11 +150,12 @@ type ProductRow = {
   updatedAt: Date
   currentRevisionId: string | null
   quarantined: boolean
-  revisions: { frontImage: string | null }[]
+  revisions: { frontImage: string | null; verifiedAt: Date | null; sourceType: string }[]
   _count: { revisions: number }
 }
 
 function toDto(p: ProductRow): SearchItemDTO {
+  const latest = p.revisions[0]
   return {
     id: p.id,
     barcode: p.barcode,
@@ -162,8 +163,10 @@ function toDto(p: ProductRow): SearchItemDTO {
     brand: p.brand,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
-    frontImage: p.revisions[0]?.frontImage ?? null,
+    frontImage: latest?.frontImage ?? null,
     approvedCount: p._count.revisions,
+    sourceType: (latest?.sourceType as SearchItemDTO['sourceType']) ?? 'unknown_legacy',
+    verified: Boolean(latest?.verifiedAt),
   }
 }
 
@@ -278,8 +281,14 @@ export async function searchProducts(opts: { q?: string; page?: number; pageSize
 
   if (!q) {
     const [products, total] = await Promise.all([
-      db.product.findMany({ orderBy: { updatedAt: 'desc' }, take: pageSize, skip, include: PRODUCT_INCLUDE }),
-      db.product.count(),
+      db.product.findMany({
+        where: { currentRevisionId: { not: null }, quarantined: false },
+        orderBy: { updatedAt: 'desc' },
+        take: pageSize,
+        skip,
+        include: PRODUCT_INCLUDE,
+      }),
+      db.product.count({ where: { currentRevisionId: { not: null }, quarantined: false } }),
     ])
     return paged(products.map(toDto), total, page, pageSize)
   }
@@ -291,15 +300,24 @@ export async function searchProducts(opts: { q?: string; page?: number; pageSize
     const conn = getSqlite()
     if (conn) {
       const match = normTokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(' ')
+      // Only published, non-quarantined records are searchable: pending-only
+      // or rejected-only products never appear as verified results.
       const idRows = conn
         .prepare(
           `SELECT f.pid FROM ${FTS_TABLE} f
-           WHERE ${FTS_TABLE} MATCH ?
+           JOIN Product p ON p.id = f.pid
+           WHERE ${FTS_TABLE} MATCH ? AND p."currentRevisionId" IS NOT NULL AND p."quarantined" = 0
            ORDER BY bm25(${FTS_TABLE})
            LIMIT ? OFFSET ?`,
         )
         .all(match, pageSize, skip) as Array<{ pid: string }>
-      const countRow = conn.prepare(`SELECT count(*) AS c FROM ${FTS_TABLE} WHERE ${FTS_TABLE} MATCH ?`).get(match) as { c: number }
+      const countRow = conn
+        .prepare(
+          `SELECT count(*) AS c FROM ${FTS_TABLE} f
+           JOIN Product p ON p.id = f.pid
+           WHERE ${FTS_TABLE} MATCH ? AND p."currentRevisionId" IS NOT NULL AND p."quarantined" = 0`,
+        )
+        .get(match) as { c: number }
       const total = Number(countRow.c)
       if (total > 0) {
         const items = await hydrate(idRows.map((r) => String(r.pid)))
@@ -326,8 +344,11 @@ export async function searchProducts(opts: { q?: string; page?: number; pageSize
   })
   const where = Prisma.join(conds, ' AND ')
   const idRows = await db.$queryRaw<Array<{ id: string }>>`
-    SELECT p.id FROM Product p WHERE ${where} ORDER BY p."updatedAt" DESC LIMIT ${pageSize} OFFSET ${skip}`
-  const countRows = await db.$queryRaw<Array<{ c: bigint }>>`SELECT count(*) AS c FROM Product p WHERE ${where}`
+    SELECT p.id FROM Product p
+    WHERE ${where} AND p."currentRevisionId" IS NOT NULL AND p."quarantined" = 0
+    ORDER BY p."updatedAt" DESC LIMIT ${pageSize} OFFSET ${skip}`
+  const countRows = await db.$queryRaw<Array<{ c: bigint }>>`
+    SELECT count(*) AS c FROM Product p WHERE ${where} AND p."currentRevisionId" IS NOT NULL AND p."quarantined" = 0`
   const total = Number(countRows[0]?.c ?? 0)
   if (total > 0) {
     const items = await hydrate(idRows.map((r) => r.id))

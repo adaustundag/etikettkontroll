@@ -41,6 +41,7 @@ describe('GET /api/changes — public change stream', () => {
         ingredients: 'water, salt',
         protein: 15.8,
         status: 'approved',
+        verifiedAt: new Date(Date.now() + 5000),
         changedFields: JSON.stringify(['protein', 'frontImage']),
         finalizedAt: new Date(Date.now() + 5000),
       },

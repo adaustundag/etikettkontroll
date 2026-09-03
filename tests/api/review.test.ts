@@ -7,7 +7,7 @@ import { POST as productsPOST } from '@/app/api/products/route'
 import { createToken } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { mockAuth, req, withParams } from '../setup'
-import { mkPending, mkProduct, mkUser, submitPayload, wipeDb } from '../fixtures'
+import { evidencePhoto, mkPending, mkProduct, mkUser, submitPayload, wipeDb } from '../fixtures'
 
 beforeEach(async () => {
   await wipeDb()
@@ -155,10 +155,23 @@ describe('POST /api/revisions/[id]/review — the Option B happy path', () => {
     const reviewerB = await mkUser({ name: 'Reviewer B', karma: 100, history: { approved: 3 } })
     const newcomer = await mkUser({ name: 'Newcomer' })
 
-    // newcomer submits a brand-new product through the real endpoint
+    // newcomer submits a brand-new product through the real endpoint —
+    // with the evidence photos the publication gate requires
     mockAuth(`Bearer ${createToken(newcomer.id)}`)
     const barcode = '7311234567890'
-    const submitRes = await productsPOST(req('POST', '/api/products', submitPayload({ barcode, name: 'Newcomer Product' })))
+    const submitRes = await productsPOST(
+      req(
+        'POST',
+        '/api/products',
+        submitPayload({
+          barcode,
+          name: 'Newcomer Product',
+          frontImage: await evidencePhoto('front'),
+          ingredientsImage: await evidencePhoto('ingredients'),
+          nutritionImage: await evidencePhoto('nutrition'),
+        }),
+      ),
+    )
     expect(submitRes.status).toBe(200)
     const { revisionId } = (await submitRes.json()) as { revisionId: string }
 

@@ -195,7 +195,7 @@ export function SubmitView({
     setSubmitting(true)
     setError(null)
     try {
-      const payload = { ...form }
+      const payload = { ...form, baseRevisionId: existing?.current?.id ?? null }
       const res = await api.post<SubmitResult>('/api/products', payload)
       setResult(res)
       setStep(4)

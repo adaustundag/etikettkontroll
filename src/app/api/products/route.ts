@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
-import { SubmitError, submitRevision } from '@/lib/revisions'
+import { SubmitConflict, SubmitError, submitRevision } from '@/lib/revisions'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
 import { searchProducts } from '@/lib/search'
@@ -36,6 +35,14 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof PayloadTooLargeError) {
       return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
+    }
+    if (err instanceof SubmitConflict) {
+      // Optimistic concurrency: the product moved under the editor — never a
+      // silent overwrite of newer data.
+      return NextResponse.json(
+        { error: err.message, conflict: true, currentRevisionId: err.currentRevisionId },
+        { status: 409 },
+      )
     }
     if (err instanceof SubmitError) return NextResponse.json({ error: err.message }, { status: 400 })
     console.error('submit error', err)

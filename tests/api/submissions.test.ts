@@ -1,11 +1,12 @@
 import '../setup'
 import { beforeEach, describe, expect, test } from 'bun:test'
 import { POST as productsPOST } from '@/app/api/products/route'
+import { POST as reviewPOST } from '@/app/api/revisions/[id]/review/route'
 import { GET as productDetailGET } from '@/app/api/products/[barcode]/route'
 import { createToken } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { mockAuth, req, withParams } from '../setup'
-import { mkProduct, mkUser, submitPayload, uniqBarcode, wipeDb } from '../fixtures'
+import { evidencePhoto, mkProduct, mkUser, submitPayload, uniqBarcode, wipeDb } from '../fixtures'
 
 beforeEach(async () => {
   await wipeDb()
@@ -15,6 +16,11 @@ async function submitAs(userId: string, payload: Record<string, unknown>) {
   mockAuth(`Bearer ${createToken(userId)}`)
   const res = await productsPOST(req('POST', '/api/products', payload))
   return res
+}
+
+async function reviewAs(reviewerId: string, revisionId: string, body: Record<string, unknown>) {
+  mockAuth(`Bearer ${createToken(reviewerId)}`)
+  return reviewPOST(req('POST', `/api/revisions/${revisionId}/review`, body), withParams({ id: revisionId }))
 }
 
 describe('POST /api/products — Option B karma behavior', () => {
@@ -28,7 +34,7 @@ describe('POST /api/products — Option B karma behavior', () => {
       ingredients: 'milk',
     })
 
-    const res = await submitAs(newcomer.id, submitPayload({ barcode: product.barcode, name: 'Arla Ekologisk Mjölk' }))
+    const res = await submitAs(newcomer.id, submitPayload({ barcode: product.barcode, name: 'Arla Ekologisk Mjölk', baseRevisionId: revision.id }))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { status: string; requiredApprovals: number; version: number }
     expect(body.status).toBe('pending')
@@ -63,7 +69,7 @@ describe('POST /api/products — Option B karma behavior', () => {
     expect(error).toContain('No changes')
   })
 
-  test('L1 contributor: single-field correction auto-publishes, supersedes and awards karma', async () => {
+  test('L1 contributor: single-field correction stays pending (no auto-publish bypass)', async () => {
     const owner = await mkUser()
     const contributor = await mkUser({ name: 'Contributor', karma: 30 }) // → L1
     const { product, revision } = await mkProduct({
@@ -82,52 +88,97 @@ describe('POST /api/products — Option B karma behavior', () => {
         brand: 'Kalles',
         ingredients: 'sill, salt, socker',
         calories: 252,
+        baseRevisionId: revision.id,
       }),
     )
     expect(res.status).toBe(200)
     const body = (await res.json()) as { status: string; autoNote: string | null; requiredApprovals: number }
-    expect(body.status).toBe('auto_approved')
-    expect(body.requiredApprovals).toBe(0)
-    expect(body.autoNote).toContain('single-field')
+    // T3: no publication bypasses — reputation prioritizes review, never replaces it
+    expect(body.status).toBe('pending')
+    expect(body.requiredApprovals).toBe(1)
+    expect(body.autoNote).toBeNull()
 
     const oldRev = await db.productRevision.findUnique({ where: { id: revision.id } })
-    expect(oldRev!.status).toBe('superseded')
+    expect(oldRev!.status).toBe('approved') // untouched until review
     const newRev = await db.productRevision.findFirst({ where: { productId: product.id, version: 2 } })
-    expect(newRev!.status).toBe('auto_approved')
+    expect(newRev!.status).toBe('pending')
     expect(newRev!.calories).toBe(252)
 
-    // author karma 30 → 32 with a karma event
+    // no karma until a review publishes it
     const after = await db.user.findUnique({ where: { id: contributor.id } })
-    expect(after!.karma).toBe(32)
+    expect(after!.karma).toBe(30)
     const events = await db.karmaEvent.findMany({ where: { userId: contributor.id, reason: 'revision_approved' } })
-    expect(events.length).toBe(1)
-    expect(events[0].delta).toBe(2)
+    expect(events.length).toBe(0)
   })
 
-  test('L1 contributor: multi-field edit still requires one approval', async () => {
+  test('L1 contributor: multi-field edit requires one approval', async () => {
     const owner = await mkUser()
     const contributor = await mkUser({ karma: 30 })
-    const { product } = await mkProduct({ name: 'Old Name', brand: 'Brand X', authorId: owner.id })
+    const { product, revision } = await mkProduct({ name: 'Old Name', brand: 'Brand X', authorId: owner.id })
 
-    const res = await submitAs(contributor.id, submitPayload({ barcode: product.barcode, name: 'New Name', calories: 100 }))
+    const res = await submitAs(contributor.id, submitPayload({ barcode: product.barcode, name: 'New Name', calories: 100, baseRevisionId: revision.id }))
     const body = (await res.json()) as { status: string; requiredApprovals: number }
     expect(body.status).toBe('pending')
     expect(body.requiredApprovals).toBe(1)
   })
 
-  test('L2 trusted: everything auto-publishes immediately', async () => {
+  test('L2 trusted: submissions also enter review (no high-reputation bypass)', async () => {
     const trusted = await mkUser({ name: 'Trusted User', karma: 100, history: { approved: 3 } })
     expect(trusted.trust.level).toBe(2)
 
     const barcode = uniqBarcode()
     const res = await submitAs(trusted.id, submitPayload({ barcode, name: 'Instant Product', brand: 'Fast' }))
     expect(res.status).toBe(200)
-    const body = (await res.json()) as { status: string; autoNote: string | null }
-    expect(body.status).toBe('auto_approved')
-    expect(body.autoNote).toContain('Trusted')
+    const body = (await res.json()) as { status: string; autoNote: string | null; requiredApprovals: number }
+    expect(body.status).toBe('pending')
+    expect(body.requiredApprovals).toBe(1)
+    expect(body.autoNote).toBeNull()
 
     const product = await db.product.findUnique({ where: { barcode } })
-    expect(product!.name).toBe('Instant Product')
+    expect(product!.name).toBe('Instant Product') // denormalized name from submission
+    expect(product!.currentRevisionId).toBeNull() // not published yet
+  })
+
+  test('stale base revision is a conflict, not a silent overwrite', async () => {
+    const owner = await mkUser()
+    const editorA = await mkUser({ name: 'Editor A' })
+    const reviewer = await mkUser({ karma: 100, history: { approved: 3 } })
+    const { product, revision } = await mkProduct({ name: 'Base Product', brand: 'Brand', authorId: owner.id })
+
+    // editor A submits (with evidence) against the true base...
+    const resA = await submitAs(
+      editorA.id,
+      submitPayload({
+        barcode: product.barcode,
+        name: 'Editor A Version',
+        baseRevisionId: revision.id,
+        frontImage: await evidencePhoto('front'),
+        ingredientsImage: await evidencePhoto('ingredients'),
+        nutritionImage: await evidencePhoto('nutrition'),
+      }),
+    )
+    expect(resA.status).toBe(200)
+    const a = (await resA.json()) as { revisionId: string }
+
+    // ...two Trusted reviews publish it, moving the canonical pointer to v2...
+    const pub1 = await reviewAs(reviewer.id, a.revisionId, { verdict: 'approve' })
+    expect(pub1.status).toBe(200)
+    const reviewerB = await mkUser({ karma: 100, history: { approved: 3 } })
+    const pub2 = await reviewAs(reviewerB.id, a.revisionId, { verdict: 'approve' })
+    expect(pub2.status).toBe(200)
+    const pub2Body = (await pub2.json()) as { finalized: boolean }
+    expect(pub2Body.finalized).toBe(true)
+
+    // ...editor B now submits claiming the OLD base — 409 conflict
+    const editorB = await mkUser({ name: 'Editor B' })
+    const resB = await submitAs(
+      editorB.id,
+      submitPayload({ barcode: product.barcode, name: 'Editor B Version', baseRevisionId: revision.id }),
+    )
+    expect(resB.status).toBe(409)
+    const body = (await resB.json()) as { conflict: boolean; currentRevisionId: string | null }
+    expect(body.conflict).toBe(true)
+    expect(body.currentRevisionId).toBe(a.revisionId)
   })
 
   test('numeric strings like "42,5" are coerced to numbers', async () => {

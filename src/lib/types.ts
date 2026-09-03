@@ -52,6 +52,15 @@ export type RevisionDTO = LabelValues & {
   reviews: ReviewDTO[]
   /** Only present on queue items: current approved values to diff against. */
   current?: LabelValues | null
+  /** Structured provenance — never derived from autoNote text. */
+  sourceType: 'human' | 'openfoodfacts' | 'demo' | 'unknown_legacy'
+  sourceUrl: string | null
+  verifiedAt: string | null
+  nutritionBasis: 'per_100g' | 'per_100ml' | null
+  baseRevisionId: string | null
+  disputeStatus: string | null
+  disputeReason: string | null
+  verificationState: 'verified' | 'rejected' | 'disputed' | 'pending' | 'unverified'
 }
 
 export type CommentDTO = {
@@ -80,9 +89,13 @@ export type ProductDetailDTO = {
 }
 
 export type SearchItemDTO = ProductDTO & {
-  /** Front photo of the latest approved revision, if any. */
+  /** Front photo of the latest published revision, if any. */
   frontImage: string | null
   approvedCount: number
+  /** Structured provenance of the latest published revision. */
+  sourceType: 'human' | 'openfoodfacts' | 'demo' | 'unknown_legacy'
+  /** True only when the latest published revision was review-verified. */
+  verified: boolean
 }
 
 export type SearchResponseDTO = {
@@ -103,6 +116,8 @@ export type ChangeItemDTO = {
   barcode: string
   version: number
   status: RevisionStatus
+  /** Always true in the public feed — it only contains review-verified publications. */
+  verified: boolean
   userName: string
   userId: string
   createdAt: string
@@ -111,10 +126,19 @@ export type ChangeItemDTO = {
 }
 
 export type StatsDTO = {
+  /** Published, non-quarantined catalog records. */
   products: number
+  /** Distinct human contributors with ≥1 verified publication (bots/demo excluded). */
   contributors: number
   pendingCount: number
+  /** @deprecated alias for verifiedCount */
   approvedCount: number
+  /** Review-verified publications by humans (imports/bots/demo excluded). */
+  verifiedCount: number
+  /** Verified first publications = catalog additions. */
+  catalogAdditions: number
+  /** Verified later publications = database corrections. */
+  corrections: number
   recent: ChangeItemDTO[]
 }
 
@@ -165,6 +189,8 @@ export type SubmitPayload = {
   frontImage?: string | null
   ingredientsImage?: string | null
   nutritionImage?: string | null
+  /** Canonical current publication the edit was based on (optimistic concurrency). */
+  baseRevisionId?: string | null
 }
 
 export type SubmitResult = {

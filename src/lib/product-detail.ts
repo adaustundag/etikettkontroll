@@ -20,8 +20,13 @@ export async function getProductDetail(barcode: string): Promise<ProductDetailDT
   })
   if (!product) return null
 
-  const current =
-    product.revisions.find((r) => r.status === 'approved' || r.status === 'auto_approved') ?? null
+  // Canonical current publication: the pointer is the source of truth; the
+  // status-based fallback covers rows not yet migrated.
+  const current = product.currentRevisionId
+    ? (product.revisions.find((r) => r.id === product.currentRevisionId && ['approved', 'auto_approved'].includes(r.status)) ??
+      product.revisions.find((r) => ['approved', 'auto_approved'].includes(r.status)) ??
+      null)
+    : (product.revisions.find((r) => r.status === 'approved' || r.status === 'auto_approved') ?? null)
   const reviewerCount = current
     ? new Set(current.reviews.filter((r) => r.verdict === 'approve').map((r) => r.reviewer.id)).size
     : 0
