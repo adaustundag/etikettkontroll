@@ -44,6 +44,16 @@ export async function register() {
     console.error('[boot] auto-seed failed:', err instanceof Error ? err.message : err)
   }
   try {
+    // Backfills only NULL provenance/pointer fields — idempotent, non-destructive.
+    const { runLaunchBackfill } = await import('@/lib/launch-backfill')
+    const s = await runLaunchBackfill(true)
+    console.log(
+      `[boot] launch backfill: pointers=${s.pointerFixes} demo=${s.classifiedDemo} off=${s.classifiedOff} legacy=${s.classifiedLegacy} verified=${s.verifiedCount}`,
+    )
+  } catch (err) {
+    console.error('[boot] launch backfill failed:', err instanceof Error ? err.message : err)
+  }
+  try {
     const { ensureSearchIndex } = await import('@/lib/search')
     const enabled = await ensureSearchIndex()
     if (enabled) console.log('[boot] product search index ready (FTS5 trigram)')
