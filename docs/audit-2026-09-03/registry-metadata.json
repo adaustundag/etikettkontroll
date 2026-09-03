@@ -1,0 +1,987 @@
+{
+  "at": "2026-09-03T21:34:25.181Z",
+  "results": [
+    {
+      "name": "@dnd-kit/core",
+      "locked": "6.3.1",
+      "latest": "6.3.1",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/core"
+      },
+      "homepage": "https://github.com/clauderic/dnd-kit#readme"
+    },
+    {
+      "name": "@dnd-kit/sortable",
+      "locked": "10.0.0",
+      "latest": "10.0.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/sortable"
+      },
+      "homepage": "https://github.com/clauderic/dnd-kit#readme"
+    },
+    {
+      "name": "@dnd-kit/utilities",
+      "locked": "3.2.2",
+      "latest": "3.2.2",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/clauderic/dnd-kit.git",
+        "type": "git",
+        "directory": "packages/utilities"
+      },
+      "homepage": "https://github.com/clauderic/dnd-kit#readme"
+    },
+    {
+      "name": "@hookform/resolvers",
+      "locked": "5.2.2",
+      "latest": "5.9.1",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/react-hook-form/resolvers.git",
+        "type": "git"
+      },
+      "homepage": "https://react-hook-form.com"
+    },
+    {
+      "name": "@mdxeditor/editor",
+      "locked": "3.52.3",
+      "latest": "4.2.3",
+      "license": "MIT",
+      "engines": {
+        "node": ">=16"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/mdx-editor/editor.git",
+        "type": "git"
+      },
+      "homepage": "https://mdxeditor.dev/"
+    },
+    {
+      "name": "@prisma/client",
+      "locked": "6.19.2",
+      "latest": "7.10.0",
+      "license": "Apache-2.0",
+      "engines": {
+        "node": "^20.19 || ^22.12 || >=24.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/prisma/prisma.git",
+        "type": "git",
+        "directory": "packages/client"
+      },
+      "homepage": "https://www.prisma.io"
+    },
+    {
+      "name": "@radix-ui/react-accordion",
+      "locked": "1.2.12",
+      "latest": "1.2.20",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/accordion"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-alert-dialog",
+      "locked": "1.1.15",
+      "latest": "1.1.23",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/alert-dialog"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-aspect-ratio",
+      "locked": "1.1.8",
+      "latest": "1.1.15",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/aspect-ratio"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-avatar",
+      "locked": "1.1.11",
+      "latest": "1.2.6",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/avatar"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-checkbox",
+      "locked": "1.3.3",
+      "latest": "1.3.11",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/checkbox"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-collapsible",
+      "locked": "1.1.12",
+      "latest": "1.1.20",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/collapsible"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-context-menu",
+      "locked": "2.2.16",
+      "latest": "2.3.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/context-menu"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-dialog",
+      "locked": "1.1.15",
+      "latest": "1.1.23",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/dialog"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-dropdown-menu",
+      "locked": "2.1.16",
+      "latest": "2.1.24",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/dropdown-menu"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-hover-card",
+      "locked": "1.1.15",
+      "latest": "1.1.23",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/hover-card"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-label",
+      "locked": "2.1.8",
+      "latest": "2.1.15",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/label"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-menubar",
+      "locked": "1.1.16",
+      "latest": "1.1.24",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/menubar"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-navigation-menu",
+      "locked": "1.2.14",
+      "latest": "1.2.22",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/navigation-menu"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-popover",
+      "locked": "1.1.15",
+      "latest": "1.1.23",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/popover"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-progress",
+      "locked": "1.1.8",
+      "latest": "1.1.16",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/progress"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-radio-group",
+      "locked": "1.3.8",
+      "latest": "1.4.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/radio-group"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-scroll-area",
+      "locked": "1.2.10",
+      "latest": "1.2.18",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/scroll-area"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-select",
+      "locked": "2.2.6",
+      "latest": "2.3.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/select"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-separator",
+      "locked": "1.1.8",
+      "latest": "1.1.15",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/separator"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-slider",
+      "locked": "1.3.6",
+      "latest": "1.4.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/slider"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-slot",
+      "locked": "1.2.4",
+      "latest": "1.3.3",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/slot"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-switch",
+      "locked": "1.2.6",
+      "latest": "1.3.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/switch"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-tabs",
+      "locked": "1.1.13",
+      "latest": "1.1.21",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/tabs"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-toast",
+      "locked": "1.2.15",
+      "latest": "1.2.23",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/toast"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-toggle",
+      "locked": "1.1.10",
+      "latest": "1.1.18",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/toggle"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-toggle-group",
+      "locked": "1.1.11",
+      "latest": "1.1.19",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/toggle-group"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@radix-ui/react-tooltip",
+      "locked": "1.2.8",
+      "latest": "1.2.16",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/radix-ui/primitives.git",
+        "type": "git",
+        "directory": "packages/react/tooltip"
+      },
+      "homepage": "https://radix-ui.com/primitives"
+    },
+    {
+      "name": "@reactuses/core",
+      "locked": "6.1.9",
+      "latest": "6.5.5",
+      "license": "Unlicense",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/childrentime/reactuse.git",
+        "type": "git",
+        "directory": "packages/core"
+      },
+      "homepage": "https://www.reactuse.com/"
+    },
+    {
+      "name": "@tailwindcss/postcss",
+      "locked": "4.1.18",
+      "latest": "4.3.3",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "packages/@tailwindcss-postcss"
+      },
+      "homepage": "https://tailwindcss.com"
+    },
+    {
+      "name": "@tanstack/react-query",
+      "locked": "5.90.19",
+      "latest": "5.102.8",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/TanStack/query.git",
+        "type": "git",
+        "directory": "packages/react-query"
+      },
+      "homepage": "https://tanstack.com/query"
+    },
+    {
+      "name": "@tanstack/react-table",
+      "locked": "8.21.3",
+      "latest": "9.2.4",
+      "license": "MIT",
+      "engines": {
+        "node": ">=20"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/TanStack/table.git",
+        "type": "git",
+        "directory": "packages/react-table"
+      },
+      "homepage": "https://tanstack.com/table"
+    },
+    {
+      "name": "@types/react",
+      "locked": "19.2.8",
+      "latest": "19.2.18",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/react"
+      },
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react"
+    },
+    {
+      "name": "@types/react-dom",
+      "locked": "19.2.3",
+      "latest": "19.2.7",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "type": "git",
+        "directory": "types/react-dom"
+      },
+      "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/react-dom"
+    },
+    {
+      "name": "@zxing/browser",
+      "locked": "0.2.1",
+      "latest": "0.2.1",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/zxing-js/browser.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/zxing-js/browser#readme"
+    },
+    {
+      "name": "bun-types",
+      "locked": "1.3.6",
+      "latest": "1.4.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/oven-sh/bun.git",
+        "type": "git",
+        "directory": "packages/bun-types"
+      },
+      "homepage": "https://bun.com"
+    },
+    {
+      "name": "class-variance-authority",
+      "locked": "0.7.1",
+      "latest": "0.7.1",
+      "license": "Apache-2.0",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/joe-bell/cva.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/joe-bell/cva#readme"
+    },
+    {
+      "name": "clsx",
+      "locked": "2.1.1",
+      "latest": "2.1.1",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/lukeed/clsx.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/lukeed/clsx#readme"
+    },
+    {
+      "name": "cmdk",
+      "locked": "1.1.1",
+      "latest": "1.1.1",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/pacocoursey/cmdk.git",
+        "type": "git",
+        "directory": "cmdk"
+      },
+      "homepage": "https://github.com/pacocoursey/cmdk#readme"
+    },
+    {
+      "name": "date-fns",
+      "locked": "4.1.0",
+      "latest": "4.4.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": "https://github.com/date-fns/date-fns"
+    },
+    {
+      "name": "embla-carousel-react",
+      "locked": "8.6.0",
+      "latest": "8.6.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/davidjerleke/embla-carousel",
+        "type": "git"
+      },
+      "homepage": "https://www.embla-carousel.com"
+    },
+    {
+      "name": "eslint",
+      "locked": "9.39.2",
+      "latest": "10.9.1",
+      "license": "MIT",
+      "engines": {
+        "node": "^20.19.0 || ^22.13.0 || >=24"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/eslint/eslint.git",
+        "type": "git"
+      },
+      "homepage": "https://eslint.org"
+    },
+    {
+      "name": "eslint-config-next",
+      "locked": "16.1.3",
+      "latest": "16.3.4",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/vercel/next.js.git",
+        "directory": "packages/eslint-config-next"
+      },
+      "homepage": "https://nextjs.org/docs/app/api-reference/config/eslint"
+    },
+    {
+      "name": "framer-motion",
+      "locked": "12.26.2",
+      "latest": "13.2.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/motiondivision/motion.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/motiondivision/motion#readme"
+    },
+    {
+      "name": "input-otp",
+      "locked": "1.4.2",
+      "latest": "1.5.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/guilhermerodz/input-otp.git",
+        "type": "git",
+        "directory": "packages/input-otp"
+      },
+      "homepage": "https://input-otp.rodz.dev/"
+    },
+    {
+      "name": "lucide-react",
+      "locked": "0.525.0",
+      "latest": "1.40.0",
+      "license": "ISC",
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/lucide-icons/lucide.git",
+        "type": "git",
+        "directory": "packages/lucide-react"
+      },
+      "homepage": "https://lucide.dev"
+    },
+    {
+      "name": "next",
+      "locked": "16.1.3",
+      "latest": "16.3.4",
+      "license": "MIT",
+      "engines": {
+        "node": ">=20.9.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/vercel/next.js.git",
+        "type": "git"
+      },
+      "homepage": "https://nextjs.org"
+    },
+    {
+      "name": "next-auth",
+      "locked": "4.24.13",
+      "latest": "4.24.15",
+      "license": "ISC",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/nextauthjs/next-auth.git",
+        "type": "git"
+      },
+      "homepage": "https://authjs.dev"
+    },
+    {
+      "name": "next-intl",
+      "locked": "4.7.0",
+      "latest": "4.14.2",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/amannn/next-intl.git",
+        "type": "git"
+      },
+      "homepage": "https://next-intl.dev"
+    },
+    {
+      "name": "next-themes",
+      "locked": "0.4.6",
+      "latest": "0.4.6",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/pacocoursey/next-themes.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/pacocoursey/next-themes#readme"
+    },
+    {
+      "name": "prisma",
+      "locked": "6.19.2",
+      "latest": "8.0.0-rc.12",
+      "license": "Apache-2.0",
+      "engines": {
+        "node": ">=22.18.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/prisma/prisma-cli.git",
+        "type": "git",
+        "directory": "packages/prisma"
+      },
+      "homepage": "https://github.com/prisma/prisma-cli#readme"
+    },
+    {
+      "name": "react",
+      "locked": "19.2.3",
+      "latest": "19.2.8",
+      "license": "MIT",
+      "engines": {
+        "node": ">=0.10.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/react/react.git",
+        "type": "git",
+        "directory": "packages/react"
+      },
+      "homepage": "https://react.dev/"
+    },
+    {
+      "name": "react-day-picker",
+      "locked": "9.13.0",
+      "latest": "10.0.1",
+      "license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/gpbl/react-day-picker.git",
+        "type": "git",
+        "directory": "packages/react-day-picker"
+      },
+      "homepage": "https://daypicker.dev"
+    },
+    {
+      "name": "react-dom",
+      "locked": "19.2.3",
+      "latest": "19.2.8",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/react/react.git",
+        "type": "git",
+        "directory": "packages/react-dom"
+      },
+      "homepage": "https://react.dev/"
+    },
+    {
+      "name": "react-hook-form",
+      "locked": "7.71.1",
+      "latest": "7.87.0",
+      "license": "MIT",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/react-hook-form/react-hook-form.git",
+        "type": "git"
+      },
+      "homepage": "https://react-hook-form.com"
+    },
+    {
+      "name": "react-markdown",
+      "locked": "10.1.0",
+      "latest": "10.1.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/remarkjs/react-markdown.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/remarkjs/react-markdown#readme"
+    },
+    {
+      "name": "react-resizable-panels",
+      "locked": "3.0.6",
+      "latest": "4.12.3",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/bvaughn/react-resizable-panels.git",
+        "type": "git"
+      },
+      "homepage": "https://react-resizable-panels.vercel.app/"
+    },
+    {
+      "name": "react-syntax-highlighter",
+      "locked": "15.6.6",
+      "latest": "16.1.1",
+      "license": "MIT",
+      "engines": {
+        "node": ">= 16.20.2"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/react-syntax-highlighter/react-syntax-highlighter.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/react-syntax-highlighter/react-syntax-highlighter#readme"
+    },
+    {
+      "name": "recharts",
+      "locked": "2.15.4",
+      "latest": "3.10.1",
+      "license": "MIT",
+      "engines": {
+        "node": ">=18"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/recharts/recharts.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/recharts/recharts"
+    },
+    {
+      "name": "sharp",
+      "locked": "0.34.5",
+      "latest": "0.35.4",
+      "license": "Apache-2.0",
+      "engines": {
+        "node": ">=20.9.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/lovell/sharp.git",
+        "type": "git"
+      },
+      "homepage": "https://sharp.pixelplumbing.com"
+    },
+    {
+      "name": "sonner",
+      "locked": "2.0.7",
+      "latest": "2.0.8",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/emilkowalski/sonner.git",
+        "type": "git"
+      },
+      "homepage": "https://sonner.emilkowal.ski/"
+    },
+    {
+      "name": "tailwind-merge",
+      "locked": "3.4.0",
+      "latest": "3.6.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/dcastil/tailwind-merge.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/dcastil/tailwind-merge"
+    },
+    {
+      "name": "tailwindcss",
+      "locked": "4.1.18",
+      "latest": "4.3.3",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "https://github.com/tailwindlabs/tailwindcss.git",
+        "type": "git",
+        "directory": "packages/tailwindcss"
+      },
+      "homepage": "https://tailwindcss.com"
+    },
+    {
+      "name": "tailwindcss-animate",
+      "locked": "1.0.7",
+      "latest": "1.0.7",
+      "license": "MIT",
+      "deprecated": null
+    },
+    {
+      "name": "tw-animate-css",
+      "locked": "1.4.0",
+      "latest": "1.4.0",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/Wombosvideo/tw-animate-css.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/Wombosvideo/tw-animate-css#readme"
+    },
+    {
+      "name": "typescript",
+      "locked": "5.9.3",
+      "latest": "7.0.2",
+      "license": "Apache-2.0",
+      "engines": {
+        "node": ">=16.20.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/microsoft/TypeScript.git",
+        "type": "git"
+      },
+      "homepage": "https://www.typescriptlang.org/"
+    },
+    {
+      "name": "uuid",
+      "locked": "11.1.0",
+      "latest": "14.0.2",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/uuidjs/uuid.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/uuidjs/uuid#readme"
+    },
+    {
+      "name": "vaul",
+      "locked": "1.1.2",
+      "latest": "1.1.2",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/emilkowalski/vaul.git",
+        "type": "git"
+      },
+      "homepage": "https://vaul.emilkowal.ski/"
+    },
+    {
+      "name": "zod",
+      "locked": "4.3.5",
+      "latest": "4.5.4",
+      "license": "MIT",
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/colinhacks/zod.git",
+        "type": "git"
+      },
+      "homepage": "https://zod.dev"
+    },
+    {
+      "name": "zustand",
+      "locked": "5.0.10",
+      "latest": "5.0.15",
+      "license": "MIT",
+      "engines": {
+        "node": ">=12.20.0"
+      },
+      "deprecated": null,
+      "repository": {
+        "url": "git+https://github.com/pmndrs/zustand.git",
+        "type": "git"
+      },
+      "homepage": "https://github.com/pmndrs/zustand"
+    }
+  ]
+}

@@ -7,11 +7,11 @@
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
-    "test": "rm -f db/test.db db/test.db-wal db/test.db-shm && DATABASE_URL=file:$PWD/db/test.db bunx prisma db push --skip-generate && bun test",
-    "db:push": "prisma db push --accept-data-loss",
+    "test": "rm -f db/test.db db/test.db-wal db/test.db-shm && DATABASE_URL=file:$PWD/db/test.db prisma migrate deploy && bun test",
+    "db:push": "prisma db push --skip-generate",
     "db:generate": "prisma generate",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
     "off:import": "bun scripts/import-off.ts"
   },
   "dependencies": {

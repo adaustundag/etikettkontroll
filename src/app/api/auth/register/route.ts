@@ -3,7 +3,6 @@ import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
-import { bootstrapFirstModerator } from '@/lib/trust'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
 import { mailConfigured, publicOrigin, sendEmail } from '@/lib/mail'
@@ -62,8 +61,6 @@ export async function POST(req: NextRequest) {
       data: { name, email, passwordHash: hashPassword(password) },
       select: { id: true, name: true, email: true },
     })
-    // First account on a fresh deployment becomes the moderator (deadlock relief).
-    await bootstrapFirstModerator(user.id)
     // Best-effort: clicking the mailed link signs in AND verifies the address.
     void sendConfirmationEmail(req, email, name)
 

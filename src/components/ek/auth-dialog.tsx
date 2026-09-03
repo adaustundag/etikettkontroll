@@ -12,15 +12,6 @@ import { toast } from 'sonner'
 import { ExternalLink, Loader2, Mail } from 'lucide-react'
 import type { MeDTO } from '@/lib/types'
 
-const DEMO_PASSWORD = 'demo1234'
-
-const DEMO_ACCOUNTS: { email: string; roleKey: 'auth.demoMod1' | 'auth.demoMod2' | 'auth.demoL2' | 'auth.demoL1' }[] = [
-  { email: 'maja@etikettkontroll.se', roleKey: 'auth.demoMod1' },
-  { email: 'erik@etikettkontroll.se', roleKey: 'auth.demoMod2' },
-  { email: 'anna@etikettkontroll.se', roleKey: 'auth.demoL2' },
-  { email: 'gustav@etikettkontroll.se', roleKey: 'auth.demoL1' },
-]
-
 type ProvidersDTO = { google: boolean; facebook: boolean; magic: boolean }
 type MagicResult = { emailed: boolean; devLink?: string }
 
@@ -173,14 +164,6 @@ export function AuthDialog({
     }
   }
 
-  const fillDemo = (demoEmail: string) => {
-    setMode('signin')
-    setMagicMode(false)
-    setEmail(demoEmail)
-    setPassword(DEMO_PASSWORD)
-    setError(null)
-  }
-
   return (
     <Dialog open={open} onOpenChange={handleChange}>
       <DialogContent className="sm:max-w-md">
@@ -306,27 +289,6 @@ export function AuthDialog({
         )}
 
         {!magicMode && error && <p className="-mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
-
-        <div className="rounded-xl border bg-muted/40 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('auth.demoTitle')}</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {t('auth.demoBody', { password: DEMO_PASSWORD })}
-          </p>
-          <ul className="mt-2 space-y-1">
-            {DEMO_ACCOUNTS.map((acc) => (
-              <li key={acc.email}>
-                <button
-                  type="button"
-                  onClick={() => fillDemo(acc.email)}
-                  className="flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent"
-                >
-                  <span className="font-mono">{acc.email}</span>
-                  <span className="ml-2 shrink-0 text-muted-foreground">{t(acc.roleKey)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1,17 +1,15 @@
 import { db } from '@/lib/db'
 
 /**
- * Boot-time convenience for fresh deployments: if the database has no users,
- * load the demo dataset (the same as `bun prisma/seed.ts`).
+ * Development convenience: if the local database has no users, load the demo
+ * dataset (the same as `bun prisma/seed.ts`).
  *
- * - Development: on by default, disable with EK_AUTO_SEED=0.
- * - Production: OFF by default (demo users with public passwords must never
- *   appear on a real deployment) — enable explicitly with EK_AUTO_SEED=1.
+ * PRODUCTION NEVER SEEDS — no opt-in flag can enable it. Demo users carry
+ * public passwords and must not exist on a real deployment.
  */
 export async function seedDemoIfEmpty(): Promise<{ seeded: boolean }> {
-  const isProd = process.env.NODE_ENV === 'production'
-  const flag = process.env.EK_AUTO_SEED
-  if (isProd ? flag !== '1' : flag === '0') return { seeded: false }
+  if (process.env.NODE_ENV === 'production') return { seeded: false }
+  if (process.env.EK_AUTO_SEED === '0') return { seeded: false }
   try {
     const users = await db.user.count()
     if (users > 0) return { seeded: false }

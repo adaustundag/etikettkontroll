@@ -45,7 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const trust = await computeTrust(me.id)
-  if (trust.level < 2) {
+  // Reviewing is earned (Trusted) — or explicitly appointed via role.
+  const canReview = trust.level >= 2 || me.role === 'moderator' || me.role === 'admin'
+  if (!canReview) {
     return NextResponse.json(
       { error: 'Reviewing unlocks at Trusted level (100 karma, 10+ approved edits).' },
       { status: 403 },

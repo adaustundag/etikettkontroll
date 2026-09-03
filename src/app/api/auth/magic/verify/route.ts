@@ -3,7 +3,6 @@ import { createHash } from 'crypto'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { finishSession } from '@/lib/oauth'
-import { bootstrapFirstModerator } from '@/lib/trust'
 import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
@@ -37,8 +36,9 @@ export async function GET(req: NextRequest) {
           .map((w) => w[0].toUpperCase() + w.slice(1))
           .join(' ') || 'Member'
       user = await db.user.create({ data: { email: record.email, name: name.slice(0, 40), passwordHash: null } })
-      // First account on a fresh deployment becomes the moderator (deadlock relief).
-      await bootstrapFirstModerator(user.id)
+    }
+    if (user.disabledAt) {
+      return NextResponse.json({ error: 'This account has been disabled.' }, { status: 403 })
     }
 
     return finishSession(user.id, url.origin, url.searchParams.get('popup') === '1')

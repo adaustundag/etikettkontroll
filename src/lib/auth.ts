@@ -75,8 +75,12 @@ export async function getSessionUser() {
   if (!token) return null
   const payload = verifyToken(token)
   if (!payload) return null
-  return db.user.findUnique({
+  const user = await db.user.findUnique({
     where: { id: payload.uid },
-    select: { id: true, email: true, name: true, karma: true, trustLevel: true, createdAt: true },
+    select: { id: true, email: true, name: true, karma: true, trustLevel: true, role: true, disabledAt: true, createdAt: true },
   })
+  // Disabled accounts (operator demo cleanup) fail even with valid tokens —
+  // their historical contributions stay, their access does not.
+  if (!user || user.disabledAt) return null
+  return user
 }

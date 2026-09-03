@@ -15,7 +15,10 @@ export const maxDuration = 300
 export async function POST(req: NextRequest) {
   const me = await getSessionUser()
   if (!me) return NextResponse.json({ error: 'Sign in to run the import.' }, { status: 401 })
-  if (me.trustLevel < 3) return NextResponse.json({ error: 'Moderator (L3) access required.' }, { status: 403 })
+  // Authority = explicitly appointed role, never earned reputation.
+  if (me.role !== 'moderator' && me.role !== 'admin') {
+    return NextResponse.json({ error: 'Moderator authority required (operator-appointed role).' }, { status: 403 })
+  }
 
   const limited = enforceRateLimit(req, 'import-off', 4, 60_000, me.id)
   if (limited) return limited

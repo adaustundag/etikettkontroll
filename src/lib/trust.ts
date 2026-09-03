@@ -77,27 +77,12 @@ export async function computeTrust(userId: string): Promise<TrustInfo> {
 }
 
 /**
- * Deadlock relief for the zero-community phase: the FIRST account on a fresh
- * deployment becomes a Moderator (L3) — otherwise every submission would pend
- * forever behind approvals nobody can cast. Best-effort, race-guarded, and
- * one-time (the bootstrap karma event marks it permanently).
+ * AUTHORITY NOTE: moderator/administrator power is `User.role`, granted only
+ * by the operator command `bun scripts/promote-moderator.ts <email>`. It is
+ * deliberately independent of karma/trustLevel — reputation can never confer
+ * administrative authority, and registration order grants nothing.
  */
-export async function bootstrapFirstModerator(userId: string): Promise<boolean> {
-  try {
-    return await db.$transaction(async (tx) => {
-      const existingModerator = await tx.user.findFirst({ where: { trustLevel: 3 }, select: { id: true } })
-      if (existingModerator) return false
-      const alreadyGranted = await tx.karmaEvent.findFirst({ where: { userId, reason: 'bootstrap_moderator' }, select: { id: true } })
-      if (alreadyGranted) return false
-      await tx.user.update({ where: { id: userId }, data: { trustLevel: 3, karma: { increment: TRUST_THRESHOLDS.moderator } } })
-      await tx.karmaEvent.create({ data: { userId, delta: TRUST_THRESHOLDS.moderator, reason: 'bootstrap_moderator' } })
-      return true
-    })
-  } catch (err) {
-    console.error('[trust] bootstrap moderator failed:', err instanceof Error ? err.message : err)
-    return false
-  }
-}
+
 
 export function requiredApprovalsFor(level: TrustLevel): number {
   if (level === 0) return 2

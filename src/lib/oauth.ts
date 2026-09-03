@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
-import { bootstrapFirstModerator } from '@/lib/trust'
 
 /**
  * Hand-rolled OAuth (authorization-code flow) for Google + Facebook, wired
@@ -181,11 +180,15 @@ export async function resolveOAuthUser(provider: string, providerId: string, ema
     where: { provider_providerId: { provider, providerId } },
     include: { user: true },
   })
-  if (existing) return existing.user
+  if (existing) {
+    if (existing.user.disabledAt) throw new Error('account_disabled')
+    return existing.user
+  }
 
   // 2. same email → link identity to the existing account
   const byEmail = await db.user.findUnique({ where: { email } })
   if (byEmail) {
+    if (byEmail.disabledAt) throw new Error('account_disabled')
     try {
       await db.externalIdentity.create({ data: { userId: byEmail.id, provider, providerId } })
     } catch {
@@ -204,7 +207,6 @@ export async function resolveOAuthUser(provider: string, providerId: string, ema
         identities: { create: { provider, providerId } },
       },
     })
-    await bootstrapFirstModerator(user.id)
     return user
   } catch {
     // rare race: someone else created this email meanwhile → link instead
@@ -255,6 +257,9 @@ export function oauthErrorMessage(err: unknown): string {
   const msg = err instanceof Error ? err.message : ''
   if (msg === 'no_email') {
     return 'The provider did not share a verified email address. Please use the email link sign-in instead.'
+  }
+  if (msg === 'account_disabled') {
+    return 'This account has been disabled.'
   }
   return 'Sign-in failed. Please try again.'
 }

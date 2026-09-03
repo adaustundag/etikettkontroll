@@ -21,6 +21,12 @@ model User {
   karma        Int      @default(0)
   // cached Option-B trust level (write-back whenever computeTrust runs)
   trustLevel   Int      @default(0)
+  // Authority is granted by an operator (scripts/promote-moderator.ts), never
+  // by registration order or earned karma. Separate from trustLevel on purpose.
+  role         String   @default("user") // user | moderator | admin
+  // Set = account disabled by an operator (demo cleanup). Disabled accounts
+  // fail session/token authentication; their historical rows are preserved.
+  disabledAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -62,11 +68,18 @@ model Product {
   // denormalized from the currently approved revision (search + list views)
   name      String
   brand     String
+  // Canonical current-publication pointer. Null = never published (only
+  // pending/rejected revisions exist) — such products stay out of search.
+  currentRevisionId String? @unique
+  // Quarantine/staging: excluded from public search and community statistics
+  // until an operator promotes the record.
+  quarantined Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  revisions ProductRevision[]
-  comments  ProductComment[]
+  revisions   ProductRevision[]
+  comments    ProductComment[]
+  observations PackagingObservation[]
 }
 
 model ProductRevision {
@@ -99,9 +112,38 @@ model ProductRevision {
   approvedCount     Int       @default(0)
   rejectedCount     Int       @default(0)
   changedFields     String    @default("[]") // JSON array of field names vs current approved revision
-  autoNote          String? // why it was auto-published, if it was
+  autoNote          String? // why it was auto-published, if it was (legacy provenance hint only)
   createdAt         DateTime  @default(now())
   finalizedAt       DateTime?
+
+  // ---- provenance (structured; autoNote text must never be parsed) ----
+  // human | openfoodfacts | demo | unknown_legacy
+  sourceType    String    @default("human")
+  sourceId      String? // external record id (e.g. OFF code)
+  sourceUrl     String? // external record URL
+  importedAt    DateTime? // when the import pipeline created this row
+  licenseData   String? // license of the transcribed/contents data
+  licenseImages String? // license of the attached images
+
+  // ---- verification (independent of publication currency) ----
+  // Set when a review-based verification finalized. Superseded rows keep it —
+  // replacing the current pointer never erases earlier verification history.
+  verifiedAt DateTime?
+  // Per 100 g vs per 100 ml; null = unknown/unstated on the label.
+  nutritionBasis String?
+
+  // ---- submission baseline (optimistic concurrency) ----
+  // The canonical current publication this edit was based on. A mismatch with
+  // Product.currentRevisionId at submit time is a conflict, not a silent overwrite.
+  baseRevisionId String?
+
+  // ---- disputes ----
+  // disputed = approvals and rejections coexist on a pending revision; only a
+  // recorded moderator resolution (with reason) unblocks publication.
+  disputeStatus       String? // disputed | resolved
+  disputeReason       String?
+  disputeResolvedAt   DateTime?
+  disputeResolvedById String?
 
   reviews Review[]
 
@@ -137,8 +179,38 @@ model KarmaEvent {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   delta     Int
-  // revision_approved | revision_rejected | review_cast | seed
+  // revision_approved | revision_rejected | review_cast | seed | bootstrap_moderator
   reason    String
   refId     String?
   createdAt DateTime @default(now())
+}
+
+// A physical package as observed in a store — separate from database
+// transcriptions. Revisions transcribe observations; comparing two evidenced
+// observations is what justifies a public packaging-change claim.
+model PackagingObservation {
+  id            String   @id @default(cuid())
+  productId     String
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // Barcode as printed on the observed package (may differ from the product's
+  // canonical barcode when variants/sizes carry their own GTINs).
+  barcode       String
+  market        String? // e.g. "SE" — where the package was observed
+  // Observation date or interval. Null stays null — never inferred from
+  // upload/import/publication timestamps.
+  observedOn    DateTime?
+  observedUntil DateTime?
+  // Structured package quantity; NOT the same concept as servingSize.
+  netQuantity   Float?
+  unit          String? // g | ml | cl | kg | l
+  multipackCount Int?
+  servingSize   String? // per-package serving as printed
+  nutritionBasis String? // per_100g | per_100ml
+  evidenceImage String? // /uploads/... proof photo
+  sourceType    String   @default("human") // human | openfoodfacts | demo | unknown_legacy
+  notes         String?
+  createdBy     String?
+  // Transcription revision published from this observation, if any.
+  publishedRevisionId String?
+  createdAt     DateTime @default(now())
 }

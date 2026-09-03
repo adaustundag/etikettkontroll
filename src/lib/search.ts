@@ -148,6 +148,8 @@ type ProductRow = {
   brand: string
   createdAt: Date
   updatedAt: Date
+  currentRevisionId: string | null
+  quarantined: boolean
   revisions: { frontImage: string | null }[]
   _count: { revisions: number }
 }

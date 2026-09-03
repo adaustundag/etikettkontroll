@@ -140,6 +140,7 @@ async function main() {
       data: {
         productId: product.id,
         version: 1,
+        sourceType: 'demo',
         submittedById: sp.addedBy.id,
         name: sp.name,
         brand: sp.brand,
@@ -177,6 +178,7 @@ async function main() {
         data: {
           productId: product.id,
           version: 2,
+          sourceType: 'demo',
           submittedById: sp.v2.submittedBy.id,
           name: sp.name,
           brand: sp.brand,
@@ -232,6 +234,7 @@ async function main() {
       data: {
         productId: product.id,
         version: last.version + 1,
+        sourceType: 'demo',
         submittedById: f.userId,
         name: last.name,
         brand: last.brand,
@@ -261,6 +264,7 @@ async function main() {
     data: {
       productId: kaviar.id,
       version: 3,
+      sourceType: 'demo',
       submittedById: linnea.id,
       name: kaviar.name,
       brand: kaviar.brand,
@@ -278,6 +282,7 @@ async function main() {
     data: {
       productId: wasa.id,
       version: 3,
+      sourceType: 'demo',
       submittedById: gustav.id,
       name: wasa.name,
       brand: wasa.brand,

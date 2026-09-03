@@ -32,6 +32,9 @@ export async function POST(req: NextRequest) {
     if (!user || !hash || !verifyPassword(password, hash)) {
       return NextResponse.json({ error: 'Wrong email or password.' }, { status: 401 })
     }
+    if (user.disabledAt) {
+      return NextResponse.json({ error: 'This account has been disabled.' }, { status: 403 })
+    }
 
     // Token goes in the body as well as the cookie: the cookie is dropped in
     // cross-origin iframes (preview panel), the bearer token is not.

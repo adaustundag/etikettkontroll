@@ -36,19 +36,21 @@ describe('POST /api/auth/register', () => {
     const row = await db.user.findUnique({ where: { email: 'maja@test.se' } })
     expect(row).not.toBeNull()
     expect(row!.passwordHash).toContain(':') // scrypt salt:hash
-    // First account on a fresh deployment bootstraps to Moderator (L3).
-    expect(row!.karma).toBe(250)
-    expect(row!.trustLevel).toBe(3)
+    // Registration never grants authority or reputation (launch-readiness T1).
+    expect(row!.karma).toBe(0)
+    expect(row!.trustLevel).toBe(0)
+    expect(row!.role).toBe('user')
   })
 
-  test('second account does NOT bootstrap — only the first one becomes moderator', async () => {
+  test('registration grants no moderator authority regardless of order', async () => {
     const res = await registerPOST(
       req('POST', '/api/auth/register', { name: 'Erik Larsson', email: 'erik@test.se', password: 'supersecret1' }),
     )
     expect(res.status).toBe(200)
     const row = await db.user.findUnique({ where: { email: 'erik@test.se' } })
-    expect(row!.karma).toBe(0)
+    expect(row!.role).toBe('user')
     expect(row!.trustLevel).toBe(0)
+    expect(row!.karma).toBe(0)
   })
 
   test('email lookup is case-insensitive on login', async () => {
