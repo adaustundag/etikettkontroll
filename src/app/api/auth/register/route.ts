@@ -29,7 +29,9 @@ async function sendConfirmationEmail(req: NextRequest, email: string, name: stri
     await sendEmail(
       email,
       'Confirm your email – EtikettKontroll',
-      `<p>Hi ${escapeHtml(name)},</p><p>Welcome to EtikettKontroll! Click below to confirm your email address. The link works once, expires in 60 minutes, and signs you in.</p><p><a href="${link}">Confirm email</a></p><p>If you didn't create this account, you can ignore this email.</p>`,
+      // The origin is validated (30D) and the token is base64url, but the
+      // href is still escaped at the attribute sink as policy (30D).
+      `<p>Hi ${escapeHtml(name)},</p><p>Welcome to EtikettKontroll! Click below to confirm your email address. The link works once, expires in 60 minutes, and signs you in.</p><p><a href="${escapeHtml(link)}">Confirm email</a></p><p>If you didn't create this account, you can ignore this email.</p>`,
     )
   } catch (err) {
     // Confirmation mail is convenience, never a gate — failures are logged only.

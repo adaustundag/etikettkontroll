@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalBoolean, assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
+import { escapeHtml } from '@/lib/sanitize'
 import { sendEmail, publicOrigin } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,8 @@ export async function POST(req: NextRequest) {
     const sent = await sendEmail(
       email,
       'Your EtikettKontroll sign-in link',
-      `<p>Hi,</p><p>Click below to sign in to EtikettKontroll. The link works once and expires in 15 minutes.</p><p><a href="${link}">Sign in</a></p><p>If you didn't request this, you can ignore this email.</p>`,
+      // Origin validated + token base64url; href still escaped at the sink (30D).
+      `<p>Hi,</p><p>Click below to sign in to EtikettKontroll. The link works once and expires in 15 minutes.</p><p><a href="${escapeHtml(link)}">Sign in</a></p><p>If you didn't request this, you can ignore this email.</p>`,
     )
     if (sent) return NextResponse.json({ ok: true, emailed: true })
 

@@ -532,3 +532,22 @@ Work Log:
 
 Stage Summary:
 - Stored label/comment/name text is now free of invisible obfuscation while preserving Swedish typography, joined emoji and script shaping. origin/main = HEAD.
+
+---
+Task ID: 30-f (Task 30 Phase 30D — email + origin trust boundary)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30D from the implementation brief: finish the email escape audit (attribute sinks included) and make publicOrigin fail closed in production. OAuth popup reviewed and dispositioned.
+
+Work Log:
+- publicOrigin() hardened (mail.ts): in production it now requires a configured APP_URL that passes validatePublicOrigin (https only, no credentials/query/fragment/path, port 443 only) — missing config THROWS (fail closed) instead of trusting forwarded headers; invalid APP_URL throws. Forwarded x-forwarded-host/proto are honored ONLY outside production (sandbox/preview contract preserved, documented). This closes I05's second half: forged forwarded headers can no longer route sign-in/confirmation links (with their tokens) to an attacker origin. Breaking-change note for the operator: production MUST set APP_URL or email links 500 by design — recorded in PENDING below.
+- Email template escape audit (grep across all sendEmail call sites): exactly two HTML templates exist — register confirmation (name escaped since 30-a; the href now ALSO escaped at the attribute sink) and magic-link request ("Hi," + server-built link; href now escaped too). The link itself is validated-origin + base64url token; escaping at the sink is defense-in-depth per the brief.
+- OAuth popup sink: reviewed at HEAD — it already posts via postMessage with JSON.stringify(token) and an explicit non-* targetOrigin (oauth.ts). Matches the audit's requested pattern; recorded as review-note, no change needed (no demonstrated XSS, per audit).
+- TESTS: tests/api/origin.test.ts (8 cases: validatePublicOrigin accept/reject matrix — http, credentials, query, fragment, path, odd port, garbage; production missing-APP_URL throws; invalid APP_URL throws; valid APP_URL beats forged forwarded headers; dev/test header fallback still works). tests/api/email-escape.test.ts (2 cases: HTML-like name stored literally + entity-escaped ONCE in the captured email — transport stubbed at the fetch/Resend boundary with a deterministic wait-for-capture; Swedish name round-trips). bun-types marks NODE_ENV read-only — assignments go through a typed view; behavior unchanged.
+- Verification (real runs): 159 tests / 512 expects passing, eslint clean, tsc clean, production build green. The email-escape test captures actual body text and asserts the escaped name and absence of a live anchor — not a size/regex mirror.
+- HONEST LIMITS: sendEmail itself is only stubbed, never live-called (no real email sent from tests); the production APP_URL change means a deploy without APP_URL configured will break email flows by DESIGN — the operator must set it (see PENDING); OAuth popup postMessage targetOrigin was reviewed but not behaviorally tested in a browser.
+
+Stage Summary:
+- Confirmation/sign-in links can no longer be steered to a hostile origin by header forgery, and no user-controlled string reaches an HTML email unescaped. origin/main = HEAD.
+
+PENDING (operator, new):
+- [ ] Set APP_URL on Railway (production) to the canonical https origin BEFORE or WITH this deploy — publicOrigin fails closed without it (by design).
