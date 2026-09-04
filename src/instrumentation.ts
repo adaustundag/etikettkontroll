@@ -54,6 +54,14 @@ export async function register() {
     console.error('[boot] launch backfill failed:', err instanceof Error ? err.message : err)
   }
   try {
+    // One-shot surgical removal of the T10 budget-probe litter (3 probe
+    // accounts + mtngk* test uploads). Narrows to a no-op after one run.
+    const { removeProbeLitter } = await import('@/lib/probe-cleanup')
+    await removeProbeLitter()
+  } catch (err) {
+    console.error('[boot] probe cleanup failed:', err instanceof Error ? err.message : err)
+  }
+  try {
     const { ensureSearchIndex } = await import('@/lib/search')
     const enabled = await ensureSearchIndex()
     if (enabled) console.log('[boot] product search index ready (FTS5 trigram)')
