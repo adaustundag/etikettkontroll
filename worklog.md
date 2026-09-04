@@ -460,3 +460,20 @@ Change record (the only code change made):
 
 Stage Summary:
 - Email HTML injection closed with a 2-file change. origin/main = HEAD (6f18498 + worklog). Remaining Task 30 plan items (sanitize.ts, sharp re-encode of uploads, invisible-char stripping) are still pending and were intentionally not started here.
+
+---
+Task ID: 30-b (Task 30 Phase 0 — reconciliation)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: The docs/audit-2026-09-03 brief (audited main at 1a1a44b) requires reconciling against newer changes before execution. HEAD moved through T1–T12 (f335187..e475a4a) and 30-a (6f18498). This pass re-verified each audit finding's file-level claim at current HEAD (a946901) via targeted grep — shallow, no behavioral tests.
+
+Reconciliation results:
+- UNCHANGED since audit (findings carry over verbatim): payload.ts (I01 full-buffer + UTF-16 length accounting), upload route (I06 buffer-then-check, client-trusted MIME), ocr route (I08 data:image prefix only), rate-limit.ts + Caddyfile (I10), tests/setup.ts forced db/test.db (I12), comments route type-throw surface (I02 partial).
+- STILL VALID, line numbers shifted (files changed under T2–T6 but findings persist): review route now req.json() unbounded at line 41 with `as` cast (I02); admin-import still unbounded req.json() + coercive startPage/pages/withImages at line 27–30 (I02); revisions.ts toNum still Number(String(v))→null at lines 85–87 (I03); off-import still startsWith('https://') any-host acceptance at line 125, offFetch follows redirects (I07); products route still `Number(page) || 1` at line 15 — Infinity is truthy and survives (I09); oauth.ts still `email_verified === false`-only rejection at line 161, magic verify still read-then-write token consumption at lines 22–27 (I11 auth follow-up).
+- CLOSED since audit: I12 ignoreBuildErrors (T7–T12 removed it; repo-root tsc fully clean). I05 email `Hi ${name}` injection (30-a escapeHtml).
+- I05 residual sub-items re-examined: publicOrigin still trusts forwarded host/proto when APP_URL absent (VALID, mail.ts); OAuth popup now uses postMessage with JSON.stringify(token) + explicit targetOrigin (oauth.ts:236–241) — the script-safe serialization the audit asked for appears present at HEAD; treat popup as review-note only, not a finding.
+- NEW relevant fact: CI (.github/workflows/ci.yml) now exists and runs bun test — the 30A test-isolation work must keep CI green (isolated runner changes touch tests/setup.ts, which CI exercises).
+
+Disposition: Phase order confirmed (30A deps/test-isolation → 30B bytes/types → 30C text → 30D email/origin → 30E images → 30F external/search → 30G release). Audit line references are stale but no findings were invalidated by T1–T12 except the two closed items above. sw.js VERSION bump applies from 30A onward (client deps change).
+
+Stage Summary:
+- Audit remains applicable at a946901 with two closed items and refreshed line references. origin/main = HEAD.
