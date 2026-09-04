@@ -5,7 +5,7 @@ import { hashPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
-import { mailConfigured, publicOrigin, sendEmail } from '@/lib/mail'
+import { escapeHtml, mailConfigured, publicOrigin, sendEmail } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,7 +28,7 @@ async function sendConfirmationEmail(req: NextRequest, email: string, name: stri
     await sendEmail(
       email,
       'Confirm your email – EtikettKontroll',
-      `<p>Hi ${name},</p><p>Welcome to EtikettKontroll! Click below to confirm your email address. The link works once, expires in 60 minutes, and signs you in.</p><p><a href="${link}">Confirm email</a></p><p>If you didn't create this account, you can ignore this email.</p>`,
+      `<p>Hi ${escapeHtml(name)},</p><p>Welcome to EtikettKontroll! Click below to confirm your email address. The link works once, expires in 60 minutes, and signs you in.</p><p><a href="${link}">Confirm email</a></p><p>If you didn't create this account, you can ignore this email.</p>`,
     )
   } catch (err) {
     // Confirmation mail is convenience, never a gate — failures are logged only.
