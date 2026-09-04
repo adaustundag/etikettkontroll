@@ -101,7 +101,7 @@ const en = {
   'privacy.title': 'Privacy',
   'privacy.intro': 'We collect as little as possible: what is needed to run accounts and publish reviewed label data. No analytics, no ad tech, no data sales.',
   'privacy.accountTitle': 'Account data',
-  'privacy.accountBody': 'We store your name, email address and a hashed password (scrypt). If you sign in with Google or Facebook we store your name, email and provider id. Your karma and contribution history are part of your public profile.',
+  'privacy.accountBody': 'We store your name, email address and a hashed password. If you sign in with Google or Facebook we store your name, email and provider id. Your karma and contribution history are part of your public profile.',
   'privacy.contentTitle': 'Your contributions',
   'privacy.contentBody': 'Submitted label data, photos and comments are published under your username as part of the open database, licensed under CC BY-SA 4.0.',
   'privacy.cookieTitle': 'Cookies',
@@ -482,7 +482,7 @@ const sv: Record<TKey, string> = {
   'privacy.title': 'Integritet',
   'privacy.intro': 'Vi samlar in så lite som möjligt: det som behövs för konton och publicerad etikettdata. Ingen analys, ingen annonsteknik, ingen försäljning av data.',
   'privacy.accountTitle': 'Kontouppgifter',
-  'privacy.accountBody': 'Vi lagrar ditt namn, din e-postadress och ett hashat lösenord (scrypt). Loggar du in med Google eller Facebook lagrar vi namn, e-post och leverantörs-id. Din karma och bidragshistorik ingår i din offentliga profil.',
+  'privacy.accountBody': 'Vi lagrar ditt namn, din e-postadress och ett hashat lösenord. Loggar du in med Google eller Facebook lagrar vi namn, e-post och leverantörs-id. Din karma och bidragshistorik ingår i din offentliga profil.',
   'privacy.contentTitle': 'Dina bidrag',
   'privacy.contentBody': 'Inskickad etikettdata, foton och kommentarer publiceras under ditt användarnamn som del av den öppna databasen, licensierad under CC BY-SA 4.0.',
   'privacy.cookieTitle': 'Kakor',
@@ -524,7 +524,7 @@ const sv: Record<TKey, string> = {
 
   // home
   'home.eyebrow': 'Den granskade livsmedelsdatabasen',
-  'home.title': 'Vad står egentligen på etiketten?',
+  'home.title': 'Vad står faktiskt på etiketten?',
   'home.subtitle':
     'Sök granskade fakta om ingredienser och näringsvärden — varje ändring kontrolleras av erfarna bidragsgivare innan den publiceras.',
   'home.searchPlaceholder': 'Sök på produktnamn eller streckkod…',
@@ -541,7 +541,7 @@ const sv: Record<TKey, string> = {
   'home.how1Title': 'Fota etiketten',
   'home.how1Body': 'Fota framsidan, ingredienslistan och näringsvärdestabellen. Bilderna är beviset bakom varje uppgift.',
   'home.how2Title': 'Skriv av etiketten',
-  'home.how2Body': 'Skriv vad förpackningen säger — eller låt autoifyllning läsa fotot och rätt därefter.',
+  'home.how2Body': 'Skriv vad förpackningen säger — eller låt automatisk ifyllning läsa av fotot och rätta uppgifterna därefter.',
   'home.how3Title': 'Granskare godkänner',
   'home.how3Body': 'Pålitliga bidragsgivare jämför ändringen med fotona och godkänner. Endast godkända versioner visas för läsare.',
   'home.recentTitle': 'Senaste granskade ändringarna',

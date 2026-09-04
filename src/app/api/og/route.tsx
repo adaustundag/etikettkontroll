@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams
   const barcode = sp.get('barcode')
 
-  let title = cleanText(sp.get('title') || '') || 'Vad står egentligen på etiketten?'
+  let title = cleanText(sp.get('title') || '') || 'Vad står faktiskt på etiketten?'
   let subtitle = cleanText(sp.get('sub') || '') || 'Granskad databas för matetiketter'
 
   if (barcode && /^\d{4,14}$/.test(barcode)) {

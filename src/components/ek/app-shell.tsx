@@ -64,7 +64,7 @@ function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initi
   // (server routes carry their own metadata via generateMetadata).
   useEffect(() => {
     const titles: Partial<Record<Route['view'], string>> = {
-      home: 'EtikettKontroll – Vad står egentligen på etiketten?',
+      home: 'EtikettKontroll – Vad står faktiskt på etiketten?',
       submit: 'Lägg till produkt – EtikettKontroll',
       queue: 'Granskningskö – EtikettKontroll',
       changes: 'Ändringar – EtikettKontroll',

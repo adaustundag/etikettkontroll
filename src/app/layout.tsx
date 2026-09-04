@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: "EtikettKontroll – Vad står egentligen på etiketten?",
+    default: "EtikettKontroll – Vad står faktiskt på etiketten?",
     template: "%s – EtikettKontroll",
   },
   description:

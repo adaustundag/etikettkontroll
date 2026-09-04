@@ -137,7 +137,7 @@ export function Header({
                   lang === l ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                {l === 'sv' ? 'SE' : 'EN'}
+                {l === 'sv' ? 'SV' : 'EN'}
               </button>
             ))}
           </div>
