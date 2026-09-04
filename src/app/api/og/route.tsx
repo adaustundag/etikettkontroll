@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { ImageResponse } from 'next/og'
 import { db } from '@/lib/db'
+import { cleanText, truncateDisplay } from '@/lib/sanitize'
+import { enforceRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,13 +12,20 @@ export const dynamic = 'force-dynamic'
  *   /api/og?title=...&sub=...      -> custom headline card
  *   /api/og?barcode=<barcode>      -> product card (name + brand from DB)
  * Satori layout: explicit flex only, no shorthand CSS.
+ *
+ * 30F: public endpoint — work is budgeted (per-IP rate limit), query text is
+ * normalized and truncated with a grapheme-safe helper (no broken emoji /
+ * lone surrogates in the rendered card).
  */
 export async function GET(req: NextRequest) {
+  const limited = enforceRateLimit(req, 'og-image', 30, 60_000)
+  if (limited) return limited
+
   const sp = req.nextUrl.searchParams
   const barcode = sp.get('barcode')
 
-  let title = sp.get('title') || 'Vad står egentligen på etiketten?'
-  let subtitle = sp.get('sub') || 'Granskad databas för matetiketter'
+  let title = cleanText(sp.get('title') || '') || 'Vad står egentligen på etiketten?'
+  let subtitle = cleanText(sp.get('sub') || '') || 'Granskad databas för matetiketter'
 
   if (barcode && /^\d{4,14}$/.test(barcode)) {
     try {
@@ -25,15 +34,16 @@ export async function GET(req: NextRequest) {
         select: { name: true, brand: true },
       })
       if (p) {
-        title = p.name
-        subtitle = p.brand || 'EtikettKontroll'
+        title = cleanText(p.name)
+        subtitle = p.brand ? cleanText(p.brand) : 'EtikettKontroll'
       }
     } catch {
       // DB not ready — keep the requested/default copy
     }
   }
-  if (title.length > 80) title = `${title.slice(0, 79)}…`
-  if (subtitle.length > 60) subtitle = `${subtitle.slice(0, 59)}…`
+  // Display-only truncation is acceptable here (audit): generated preview.
+  title = truncateDisplay(title, 80)
+  subtitle = truncateDisplay(subtitle, 60)
 
   return new ImageResponse(
     (

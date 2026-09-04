@@ -276,7 +276,7 @@ export async function searchProducts(opts: { q?: string; page?: number; pageSize
   const pageSize = Math.min(50, Math.max(1, Math.floor(opts.pageSize ?? 20)))
   const skip = (page - 1) * pageSize
   const q = (opts.q ?? '').trim()
-  const rawTokens = q.split(/\s+/).filter(Boolean)
+  const rawTokens = q.split(/\s+/).filter(Boolean).slice(0, 12) // 30F: token budget
   const normTokens = rawTokens.map((t) => normalizeForSearch(t)).filter(Boolean)
 
   if (!q) {
@@ -334,7 +334,20 @@ export async function searchProducts(opts: { q?: string; page?: number; pageSize
 
   // Fallback: LIKE with case variants per RAW token (preserves åäö for the
   // three case forms; SQLite LIKE folds ASCII case on top of that).
-  const conds = rawTokens.map((t) => {
+  // 30F degenerate-query guard: tokens that collapse to nothing after LIKE
+  // wildcard stripping (e.g. "%", "_") must not reach Prisma.join — an empty
+  // condition group is a SQL syntax error, not an empty result. Short-circuit
+  // to the existing empty-result shape (fuzzy already got its chance below).
+  const usableTokens = rawTokens.filter((t) => t.replace(/[%_\\]/g, '').length > 0)
+  if (usableTokens.length === 0) {
+    const fuzzy = await fuzzySearch(normTokens, page, pageSize)
+    if (fuzzy) {
+      const items = await hydrate(fuzzy.ids)
+      return paged(items, fuzzy.total, page, pageSize)
+    }
+    return paged([], 0, page, pageSize)
+  }
+  const conds = usableTokens.map((t) => {
     const esc = t.replace(/[%_\\]/g, '')
     const variants = [...new Set([esc, esc.toUpperCase(), esc.charAt(0).toUpperCase() + esc.slice(1).toLowerCase()])].filter(Boolean)
     return Prisma.join(

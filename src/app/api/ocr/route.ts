@@ -3,6 +3,7 @@ import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 import { normalizeImage } from '@/lib/image-normalize'
+import { cleanMultiline } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -25,13 +26,13 @@ Return ONLY minified JSON, no markdown, in this shape:
 {"ingredients":"<the ingredient list text exactly as printed, keep the original language>","nutrition":{"servingSize":"<the package portion if printed, e.g. 1 cookie (25 g), or null>","calories":<kcal per 100 g/ml or null>,"protein":<g per 100 g or null>,"carbs":<g or null>,"sugars":<g or null>,"fat":<g or null>,"salt":<g or null>}}
 Use null for anything not visible on the package. Numbers must be plain numbers, not strings.`
 
-function parseJsonLoose(text: string): OcrResult | null {
+function parseJsonLoose(text: string): { ingredients?: unknown; nutrition?: unknown } | null {
   const cleaned = text.replace(/```json|```/g, '').trim()
   const start = cleaned.indexOf('{')
   const end = cleaned.lastIndexOf('}')
   if (start === -1 || end === -1) return null
   try {
-    return JSON.parse(cleaned.slice(start, end + 1)) as OcrResult
+    return JSON.parse(cleaned.slice(start, end + 1)) as { ingredients?: unknown; nutrition?: unknown }
   } catch {
     return null
   }
@@ -118,21 +119,37 @@ export async function POST(req: NextRequest) {
           },
         ],
       }),
+      // Provider output is untrusted third-party data (30F): deadline + byte
+      // cap. maxDuration is not a fetch cancellation mechanism.
+      signal: AbortSignal.timeout(OCR_PROVIDER_TIMEOUT_MS),
     })
     if (!response.ok) {
       console.error('ocr provider error', response.status, (await response.text()).slice(0, 500))
       return NextResponse.json({ error: 'Could not read the label. Please type it manually.' }, { status: 502 })
     }
-    const data = (await response.json()) as { choices?: { message?: { content?: string } }[] }
-    const raw = data.choices?.[0]?.message?.content ?? ''
+    const rawBody = await readBoundedProviderBody(response)
+    if (!rawBody) {
+      return NextResponse.json({ error: 'Could not read the label. Please type it manually.' }, { status: 502 })
+    }
+    let data: unknown
+    try {
+      data = JSON.parse(rawBody)
+    } catch {
+      return NextResponse.json({ error: 'Could not read the label. Please type it manually.' }, { status: 502 })
+    }
+    const raw = providerContent(data)
     const parsed = parseJsonLoose(raw)
     if (!parsed || (!parsed.ingredients && !parsed.nutrition)) {
       return NextResponse.json({ error: 'Could not read the label. Please type it manually.' }, { status: 502 })
     }
-    return NextResponse.json({
-      ingredients: parsed.ingredients?.trim() || null,
-      nutrition: parsed.nutrition ?? null,
-    } satisfies Partial<OcrResult>)
+    // 30F: construct a fresh, allowlisted DTO — unknown keys never reach the
+    // client, numbers must be finite and within label bounds, strings are
+    // normalized. Provider output is data, not truth.
+    const dto = validatedOcrDto(parsed)
+    if (!dto) {
+      return NextResponse.json({ error: 'Could not read the label. Please type it manually.' }, { status: 502 })
+    }
+    return NextResponse.json(dto)
   } catch (err) {
     const mapped = payloadErrorResponse(err)
     if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
@@ -143,6 +160,86 @@ export async function POST(req: NextRequest) {
 
 const OCR_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const OCR_DECODED_MAX_BYTES = 8 * 1024 * 1024
+const OCR_PROVIDER_TIMEOUT_MS = 45_000
+const OCR_RESPONSE_MAX_BYTES = 1 * 1024 * 1024
+
+/** Stream-capped provider body; null when over budget or unreadable. */
+async function readBoundedProviderBody(res: Response): Promise<string | null> {
+  const reader = res.body?.getReader()
+  if (!reader) return null
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > OCR_RESPONSE_MAX_BYTES) {
+        await reader.cancel().catch(() => undefined)
+        return null
+      }
+      chunks.push(value)
+    }
+  } catch {
+    return null
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const c of chunks) {
+    bytes.set(c, offset)
+    offset += c.byteLength
+  }
+  return new TextDecoder('utf-8', { fatal: false }).decode(bytes)
+}
+
+/** Extract message content from the provider envelope without trusting its shape. */
+function providerContent(data: unknown): string {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return ''
+  const choices = (data as Record<string, unknown>)['choices']
+  if (!Array.isArray(choices) || choices.length === 0) return ''
+  const first = choices[0]
+  if (!first || typeof first !== 'object') return ''
+  const message = (first as Record<string, unknown>)['message']
+  if (!message || typeof message !== 'object') return ''
+  const content = (message as Record<string, unknown>)['content']
+  return typeof content === 'string' ? content : ''
+}
+
+function boundedNumber(v: unknown): number | null {
+  if (v === null || v === undefined) return null
+  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0 || v > 10_000) return null
+  return v
+}
+
+function boundedText(v: unknown, max: number): string | null {
+  if (v === null || v === undefined) return null
+  if (typeof v !== 'string') return null
+  const cleaned = cleanMultiline(v)
+  return cleaned && cleaned.length <= max ? cleaned : cleaned ? cleaned.slice(0, max) : null
+}
+
+/** Build the response DTO from known fields only; null when nothing usable survived. */
+function validatedOcrDto(parsed: {
+  ingredients?: unknown
+  nutrition?: unknown
+}): OcrResult | null {
+  const ingredients = boundedText(parsed.ingredients, 8000)
+  let nutrition: OcrResult['nutrition'] = null
+  if (parsed.nutrition && typeof parsed.nutrition === 'object' && !Array.isArray(parsed.nutrition)) {
+    const n = parsed.nutrition as Record<string, unknown>
+    nutrition = {
+      servingSize: boundedText(n['servingSize'], 60),
+      calories: boundedNumber(n['calories']),
+      protein: boundedNumber(n['protein']),
+      carbs: boundedNumber(n['carbs']),
+      sugars: boundedNumber(n['sugars']),
+      fat: boundedNumber(n['fat']),
+      salt: boundedNumber(n['salt']),
+    }
+  }
+  if (!ingredients && !nutrition) return null
+  return { ingredients, nutrition }
+}
 
 /**
  * Validate a base64 data URL and return its decoded bytes.

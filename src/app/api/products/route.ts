@@ -14,17 +14,18 @@ export const dynamic = 'force-dynamic'
 // params keep defaults; supplied values must be finite integers or they are
 // rejected back to the default — `Number('Infinity')` and the `Number(null)`
 // = 0 trap are both avoided explicitly.
-function intParam(sp: URLSearchParams, name: string, fallback: number): number {
+function intParam(sp: URLSearchParams, name: string, fallback: number, min: number, max: number): number {
   const raw = sp.get(name)
   if (raw === null) return fallback
   const n = Number(raw)
-  return Number.isFinite(n) && Number.isInteger(n) ? n : fallback
+  if (!Number.isFinite(n) || !Number.isInteger(n)) return fallback
+  return Math.min(max, Math.max(min, n))
 }
 
 export async function GET(req: NextRequest) {
   const q = (req.nextUrl.searchParams.get('q') || '').trim().slice(0, 256)
-  const page = intParam(req.nextUrl.searchParams, 'page', 1)
-  const pageSize = intParam(req.nextUrl.searchParams, 'pageSize', 20)
+  const page = intParam(req.nextUrl.searchParams, 'page', 1, 1, 500)
+  const pageSize = intParam(req.nextUrl.searchParams, 'pageSize', 20, 1, 50)
 
   const result = await searchProducts({ q, page, pageSize })
   return NextResponse.json(result)

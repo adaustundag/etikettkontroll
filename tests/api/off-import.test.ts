@@ -48,13 +48,6 @@ describe('mapOffProduct — OFF row -> MappedProduct', () => {
     expect(r.data.calories).toBe(375.2) // 1570 / 4.184, 1 decimal
   })
 
-  test('derives salt from sodium when salt is absent', () => {
-    const r = mapOffProduct({ ...base, nutriments: { sodium_100g: 0.1 } })
-    expect(r.ok).toBe(true)
-    if (!r.ok) return
-    expect(r.data.salt).toBe(0.25) // 0.1 * 2.5
-  })
-
   test('rejects invalid rows with a reason', () => {
     expect(mapOffProduct({ ...base, code: '123' }).ok).toBe(false) // too short
     expect(mapOffProduct({ ...base, code: 'abc' }).ok).toBe(false)
@@ -75,5 +68,53 @@ describe('mapOffProduct — OFF row -> MappedProduct', () => {
     expect(r.data.calories).toBeNull()
     expect(r.data.protein).toBeNull()
     expect(r.data.imageUrl).toBeNull()
+  })
+})
+
+describe('mapOffProduct — 30F upstream-validation hardening', () => {
+  test('null/undefined/array rows yield a shape reason, never a throw', () => {
+    expect(mapOffProduct(null).ok).toBe(false)
+    expect(mapOffProduct(undefined).ok).toBe(false)
+    expect(mapOffProduct([base]).ok).toBe(false)
+    expect(mapOffProduct({ ...base, nutriments: 'garbage' }).ok).toBe(false)
+  })
+
+  test('numeric barcode code is accepted (upstream sends numbers sometimes)', () => {
+    const r = mapOffProduct({ ...base, code: 7310865004703 })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data.barcode).toBe('7310865004703')
+  })
+
+  test('oversize ingredient evidence is REJECTED, not silently truncated', () => {
+    const r = mapOffProduct({ ...base, ingredients_text: 'x'.repeat(9000) })
+    expect(r.ok).toBe(false)
+    if (r.ok) return
+    expect(r.reason).toBe('ingredients_length')
+  })
+
+  test('oversize serving size is rejected, not truncated', () => {
+    const r = mapOffProduct({ ...base, serving_size: 'y'.repeat(61) })
+    expect(r.ok).toBe(false)
+  })
+
+  test('image URLs are restricted to the exact OFF host allowlist', () => {
+    const ok = mapOffProduct({ ...base, image_front_small_url: 'https://images.openfoodfacts.org/a.jpg' })
+    const lookalike = mapOffProduct({ ...base, image_front_small_url: 'https://images.openfoodfacts.org.evil.se/a.jpg' })
+    const ipLiteral = mapOffProduct({ ...base, image_front_small_url: 'https://1.2.3.4/a.jpg' })
+    const withCreds = mapOffProduct({ ...base, image_front_small_url: 'https://user:pw@images.openfoodfacts.org/a.jpg' })
+    const otherPort = mapOffProduct({ ...base, image_front_small_url: 'https://images.openfoodfacts.org:8443/a.jpg' })
+    expect(ok.ok && ok.data.imageUrl).toContain('images.openfoodfacts.org')
+    expect(lookalike.ok && lookalike.data.imageUrl).toBeNull()
+    expect(ipLiteral.ok && ipLiteral.data.imageUrl).toBeNull()
+    expect(withCreds.ok && withCreds.data.imageUrl).toBeNull()
+    expect(otherPort.ok && otherPort.data.imageUrl).toBeNull()
+  })
+
+  test('invisible/bidi characters in OFF text are stripped (30C pipeline shared)', () => {
+    const r = mapOffProduct({ ...base, product_name: 'Ka\u200Bller\u200Es Kaviar' })
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.data.name).toBe('Kallers Kaviar')
   })
 })

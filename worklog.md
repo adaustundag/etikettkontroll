@@ -569,3 +569,23 @@ Work Log:
 
 Stage Summary:
 - Every image entering the file store — user upload, OFF import, OCR — is decoded, bounded, re-encoded and metadata-stripped through one pipeline; corrupt/disguised payloads never persist. origin/main = HEAD.
+
+---
+Task ID: 30-h (Task 30 Phase 30F — external data + query budgets)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30F from the implementation brief: OFF host allowlist + bounded reads + row validation, OCR provider-output DTO validation, search budgets + degenerate-query short-circuit, OG normalization + rate budget. search.ts SQL untouched (control flow around it only).
+
+Work Log:
+- OFF fetch (I07): exact-host allowlist {world, images, static}.openfoodfacts.org enforced on EVERY hop — redirects are now manual with a 3-hop cap and each Location revalidated (protocol https, no credentials, no port, hostname in the exact set, IP literals rejected). 20s deadline via AbortSignal.timeout. Old behavior accepted any https URL and followed redirects blindly.
+- OFF response reads: API JSON and image downloads are streamed with hard byte caps (2 MiB each, reader cancelled on overflow — no Content-Length trust, no buffer-then-check). 
+- OFF row validation: rows are unknown data — non-object rows and mapper throws now count as reason 'shape' instead of crashing the batch; mapOffProduct signature changed to unknown with runtime shape/type checks (numeric barcode codes handled via a primitive-only safeString; wrong nutriments types rejected); imported strings normalized through the shared 30C pipeline (invisible chars stripped); oversize ingredient evidence (>8000) and serving size (>60) are REJECTED with reasons, no silent truncation (audit: "do not silently truncate imported ingredient evidence"); image URLs must match the exact OFF host allowlist (lookalike suffixes, IP literals, credentials, odd ports all dropped).
+- OCR provider output (I08 output side): response read with 1 MiB streaming cap + 45s fetch deadline (maxDuration is not cancellation); envelope extracted without trusting its shape (providerContent); parseJsonLoose now yields unknown; validatedOcrDto() constructs a fresh allowlisted DTO — strings cleaned + bounded (ingredients ≤8000, servingSize ≤60), numbers finite and within 0–10000 or null, extra keys dropped; wrong-typed values become intended nulls, total garbage → existing 502/manual-entry path.
+- Search (I09): route-level clamps page 1–500, pageSize 1–50, q ≤256 (all finite-integer-guarded); token budget ≤12 nonempty tokens (slice in searchProducts — control flow, SQL untouched); degenerate-query short-circuit: tokens collapsing to nothing after LIKE-wildcard stripping (e.g. "%", "_") no longer reach Prisma.join (previously an empty condition group → SQL syntax error → 500); they return the existing empty-result shape after the fuzzy pass. Explanatory comment on the parameterization already present from 30B pass — verified untouched SQL.
+- OG route (I09 rendering side): public rate budget 30/min/IP via the existing in-memory limiter; query text (title/sub) and DB names go through cleanText + grapheme-safe truncateDisplay (no lone surrogates in rendered cards).
+- TESTS: boundary-30f.test.ts (8 cases: %%%-query → empty shape not 500; pure-wildcard query OK; Infinity page → default; page clamped to 500; 1000-char q OK; OCR extra keys/wrong types/out-of-range → nulls with allowlisted response shape; oversized provider body → 502). off-import.test.ts extended (7 new cases: null/array/garbage rows → 'shape' reason; numeric barcode accepted; oversize ingredients/serving rejected not truncated; image-URL allowlist matrix incl. lookalike/IP-literal/credentials/port; 30C normalization applied to OFF text). 181 tests / 585 expects, all passing.
+- Two of my own sloppy test-file drafts were caught and fixed before commit (stray tokens, a fake afterEach declaration, a dropped original test restored) — nothing shipped dirty.
+- Verification (real runs): 181/181, eslint clean, tsc clean, production build green.
+- HONEST LIMITS: OFF allowlist cannot be live-verified against real redirects from this environment (their API 503s sometimes even from Railway — recorded in Task 27); the redirect revalidation is asserted by code review + the off-import unit tests; OCR deadline behavior (45s) is implemented, not timed out in tests (a real 45s wait is not a unit test); OG rate budget is per-process memory like all rate limits here.
+
+Stage Summary:
+- External inputs (OFF rows, images, OCR provider output) are now bounded, host-allowlisted, type-validated and normalized; public search/rendering work is budgeted and degenerate inputs degrade to empty results. origin/main = HEAD.

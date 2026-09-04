@@ -3,6 +3,7 @@ import path from 'path'
 import { db } from '@/lib/db'
 import { uploadsDir } from '@/lib/uploads'
 import { normalizeImage, normalizedFileName } from '@/lib/image-normalize'
+import { cleanMultiline, cleanText } from '@/lib/sanitize'
 
 /**
  * One-time bootstrap importer: pulls Swedish grocery products from Open Food
@@ -18,6 +19,22 @@ import { normalizeImage, normalizedFileName } from '@/lib/image-normalize'
  */
 
 const OFF_BASE = 'https://world.openfoodfacts.org'
+
+/**
+ * Exact-origin allowlist (30F / audit I07): OFF's API and its image CDNs.
+ * Exact host match only — no suffix lookalikes, no IP literals, no other
+ * ports. The upstream supplies image URLs; without an allowlist this is an
+ * upstream-controlled fetch target (SSRF-adjacent).
+ */
+const OFF_ALLOWED_HOSTS = new Set([
+  'world.openfoodfacts.org',
+  'images.openfoodfacts.org',
+  'static.openfoodfacts.org',
+])
+
+const OFF_RESPONSE_MAX_BYTES = 2 * 1024 * 1024
+const OFF_DEADLINE_MS = 20_000
+const OFF_MAX_REDIRECTS = 3
 const OFF_FIELDS = [
   'code',
   'product_name',
@@ -39,6 +56,11 @@ const LICENSE_IMAGES = 'CC BY-SA 4.0 (Open Food Facts contributors)'
 
 const BARCODE_RE = /^\d{8,14}$/
 
+/**
+ * OFF upstream types are advisory only — rows are validated at runtime as
+ * unknown data (30F). This type documents the EXPECTED shape of a v2 search
+ * row; nothing is trusted to it.
+ */
 type OffNutriments = Record<string, number | undefined>
 
 type OffProduct = {
@@ -70,8 +92,11 @@ export type MappedProduct = {
 
 export type MapResult = { ok: true; data: MappedProduct } | { ok: false; reason: string }
 
-function oneLine(s: string): string {
-  return s.replace(/\s+/g, ' ').trim()
+/** Safe string extraction from an untrusted upstream field: primitives only, no throwing. */
+function safeString(v: unknown): string {
+  if (typeof v === 'string') return v
+  if (typeof v === 'number' && Number.isFinite(v)) return String(v)
+  return ''
 }
 
 function round(v: number, decimals: number): number {
@@ -84,41 +109,66 @@ function num(v: unknown): number | null {
 }
 
 /** Pure mapper — invalid products are skipped with a reason, never thrown. */
-export function mapOffProduct(raw: OffProduct): MapResult {
-  const barcode = (raw.code ?? '').trim()
+export function mapOffProduct(raw: unknown): MapResult {
+  // Upstream rows are unknown data (30F): shape and field types validated
+  // BEFORE any .trim()/.replace() — a numeric code or null row must yield a
+  // reason, not a TypeError that kills the batch.
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, reason: 'shape' }
+  const r = raw as Record<string, unknown>
+  if (!r.nutriments || typeof r.nutriments !== 'object' || Array.isArray(r.nutriments)) {
+    // nutriments may be absent (null) — that is allowed; wrong types are not.
+    if (r.nutriments !== null && r.nutriments !== undefined) return { ok: false, reason: 'shape' }
+  }
+  const n = (r.nutriments ?? {}) as Record<string, unknown>
+
+  const barcode = safeString(r['code']).trim()
   if (!BARCODE_RE.test(barcode)) return { ok: false, reason: 'barcode' }
 
-  const name = oneLine(raw.product_name_sv || raw.product_name || '')
+  const name = cleanText(safeString(r['product_name_sv']) || safeString(r['product_name']))
   if (name.length < 2 || name.length > 200) return { ok: false, reason: 'name' }
 
-  const brand = oneLine((raw.brands ?? '').split(',')[0] ?? '')
+  const brand = cleanText(safeString(r['brands']).split(',')[0] ?? '')
   if (brand.length < 1 || brand.length > 120) return { ok: false, reason: 'brand' }
 
-  const ingredients = oneLine(raw.ingredients_text_sv || raw.ingredients_text || '')
+  const ingredients = cleanMultiline(safeString(r['ingredients_text_sv']) || safeString(r['ingredients_text']))
+  // No silent truncation of imported evidence (30F): oversize is a skip.
   if (ingredients.length < 5) return { ok: false, reason: 'ingredients' }
+  if (ingredients.length > 8000) return { ok: false, reason: 'ingredients_length' }
 
-  const n = raw.nutriments ?? {}
   const kcal = num(n['energy-kcal_100g']) ?? (num(n['energy-kj_100g']) !== null ? round(num(n['energy-kj_100g'])! / 4.184, 1) : null)
   const salt = num(n['salt_100g']) ?? (num(n['sodium_100g']) !== null ? round(num(n['sodium_100g'])! * 2.5, 3) : null)
 
-  const servingSizeRaw = oneLine(raw.serving_size ?? '')
+  const servingSizeRaw = cleanText(safeString(r['serving_size']))
+  if (servingSizeRaw.length > 60) return { ok: false, reason: 'serving_size' }
 
   return {
     ok: true,
     data: {
       barcode,
-      name: name.slice(0, 200),
-      brand: brand.slice(0, 120),
-      ingredients: ingredients.slice(0, 8000),
-      servingSize: servingSizeRaw ? servingSizeRaw.slice(0, 60) : null,
+      name,
+      brand,
+      ingredients,
+      servingSize: servingSizeRaw || null,
       calories: kcal !== null ? round(kcal, 1) : null,
       protein: num(n['proteins_100g']) !== null ? round(num(n['proteins_100g'])!, 2) : null,
       carbs: num(n['carbohydrates_100g']) !== null ? round(num(n['carbohydrates_100g'])!, 2) : null,
       sugars: num(n['sugars_100g']) !== null ? round(num(n['sugars_100g'])!, 2) : null,
       fat: num(n['fat_100g']) !== null ? round(num(n['fat_100g'])!, 2) : null,
       salt,
-      imageUrl: raw.image_front_small_url?.startsWith('https://') ? raw.image_front_small_url : null,
+      imageUrl: offImageUrl(r['image_front_small_url']),
     },
+  }
+}
+
+/** Only image URLs on the OFF allowlist are eligible; everything else is dropped. */
+function offImageUrl(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  try {
+    const u = new URL(v)
+    if (u.protocol !== 'https:' || u.username || u.password || u.port) return null
+    return OFF_ALLOWED_HOSTS.has(u.hostname) ? v : null
+  } catch {
+    return null
   }
 }
 
@@ -132,14 +182,54 @@ export type ImportSummary = {
   invalidReasons: Record<string, number>
 }
 
-async function offFetch(url: string): Promise<Response> {
-  // OFF etiquette: identify yourself, keep ~1 req/s (callers sleep between pages).
-  // Accepts full URLs (image CDN) or paths (API) — only prefix the latter.
-  const target = url.startsWith('https://') ? url : `${OFF_BASE}${url}`
-  return fetch(target, {
-    headers: { 'User-Agent': 'EtikettKontroll/0.2 (crowdsourced label database; +https://etikettkontroll.se)' },
-    redirect: 'follow',
+/**
+ * Bounded OFF fetch (30F): exact-host allowlist enforced on EVERY hop
+ * (redirect: manual + small hop cap — following redirects blindly would let
+ * the upstream bounce us anywhere), 20s deadline, HTTPS only, no credentials.
+ */
+async function offFetchOnce(url: string): Promise<Response> {
+  return fetch(url, {
+    headers: { 'User-Agent': 'EtikettKontroll/0.3 (crowdsourced label database; +https://etikettkontroll.se)' },
+    redirect: 'manual',
+    signal: AbortSignal.timeout(OFF_DEADLINE_MS),
   })
+}
+
+function isAllowedOffUrl(url: URL): boolean {
+  return (
+    url.protocol === 'https:' &&
+    !url.username &&
+    !url.password &&
+    !url.port &&
+    OFF_ALLOWED_HOSTS.has(url.hostname) &&
+    !/^(\d{1,3}\.){3}\d{1,3}$/.test(url.hostname) && // IP literal, not a name
+    url.hostname.includes('.')
+  )
+}
+
+async function offFetch(url: string): Promise<Response> {
+  // Accepts full URLs (image CDN) or paths (API) — only prefix the latter.
+  let current = url.startsWith('https://') ? url : `${OFF_BASE}${url}`
+  for (let hop = 0; hop <= OFF_MAX_REDIRECTS; hop++) {
+    let parsed: URL
+    try {
+      parsed = new URL(current)
+    } catch {
+      throw new Error('OFF request rejected: invalid URL')
+    }
+    if (!isAllowedOffUrl(parsed)) throw new Error(`OFF request rejected: host not allowed (${parsed.hostname})`)
+    const res = await fetch(parsed.toString(), {
+      headers: { 'User-Agent': 'EtikettKontroll/0.3 (crowdsourced label database; +https://etikettkontroll.se)' },
+      redirect: 'manual',
+      signal: AbortSignal.timeout(OFF_DEADLINE_MS),
+    })
+    if (res.status < 300 || res.status >= 400) return res
+    const location = res.headers.get('location')
+    if (!location) throw new Error('OFF redirect without Location')
+    await res.body?.cancel().catch(() => undefined)
+    current = new URL(location, parsed).toString()
+  }
+  throw new Error('OFF request rejected: too many redirects')
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
@@ -200,6 +290,39 @@ async function offFetchWithRetry(path: string, attempts = 3): Promise<Response> 
   throw lastErr ?? new Error('Open Food Facts request failed')
 }
 
+/** Stream an OFF response into JSON with a hard byte cap; null when over budget. */
+async function readBoundedOffJson(res: Response): Promise<unknown> {
+  const reader = res.body?.getReader()
+  if (!reader) return null
+  const chunks: Uint8Array[] = []
+  let total = 0
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > OFF_RESPONSE_MAX_BYTES) {
+        await reader.cancel().catch(() => undefined)
+        return null
+      }
+      chunks.push(value)
+    }
+  } catch {
+    return null
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const c of chunks) {
+    bytes.set(c, offset)
+    offset += c.byteLength
+  }
+  try {
+    return JSON.parse(new TextDecoder('utf-8', { fatal: false }).decode(bytes))
+  } catch {
+    return null
+  }
+}
+
 /**
  * Imports `pages` pages (100 products/page) of Swedish OFF products starting
  * at `startPage`. Existing barcodes are skipped; invalid OFF rows are counted
@@ -222,12 +345,28 @@ export async function importOffPages(opts: { startPage?: number; pages?: number;
   for (let page = startPage; page < startPage + pages; page++) {
     const res = await offFetchWithRetry(`/api/v2/search?countries_tags=sweden&fields=${OFF_FIELDS}&page_size=100&page=${page}`)
     if (!res.ok) throw new Error(`Open Food Facts returned ${res.status} on page ${page}`)
-    const body = (await res.json()) as { products?: OffProduct[] }
-    const rows = body.products ?? []
+    // Bounded JSON read (30F): stream with the 2 MiB budget, never trust
+    // Content-Length; oversized responses are cancelled, not buffered.
+    const body = (await readBoundedOffJson(res)) as { products?: unknown[] } | null
+    if (!body || !Array.isArray(body.products)) throw new Error('Open Food Facts response has unexpected shape')
+    const rows = body.products
     summary.fetched += rows.length
 
     for (const raw of rows) {
-      const mapped = mapOffProduct(raw)
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        summary.skippedInvalid++
+        summary.invalidReasons['shape'] = (summary.invalidReasons['shape'] ?? 0) + 1
+        continue
+      }
+      let mapped: MapResult
+      try {
+        mapped = mapOffProduct(raw)
+      } catch {
+        // The mapper is contractually pure; belt & suspenders for upstream garbage.
+        summary.skippedInvalid++
+        summary.invalidReasons['shape'] = (summary.invalidReasons['shape'] ?? 0) + 1
+        continue
+      }
       if (!mapped.ok) {
         summary.skippedInvalid++
         summary.invalidReasons[mapped.reason] = (summary.invalidReasons[mapped.reason] ?? 0) + 1
