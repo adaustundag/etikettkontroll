@@ -438,3 +438,25 @@ Stage Summary:
 PENDING (user actions):
 - [ ] Manual browser pass: install to home screen (Android/desktop Chrome), visit 2–3 products, toggle airplane mode, reopen a visited product (should render), then submit something (should show the Swedish offline error, not queue).
 - [ ] Standing reminder: bump VERSION in public/sw.js together with package.json on every deploy that changes the app shell.
+
+---
+Task ID: 30-a
+Agent: opencode (GLM-5.3-Flash, local)
+Task: Shallow audit of the undocumented T1–T12 commits (f335187..e475a4a) + the single highest-priority fix from the Task 30 sanitization plan (email HTML injection). Scope was deliberately narrow: report observations only, change only what the injection fix requires, no deep verification, nothing fabricated.
+
+Audit observations (shallow — file-level, no behavioral verification):
+- CI (T7–T12 claim): .github/workflows/ci.yml EXISTS and is plausible (bun install → prisma generate → tsc --noEmit → eslint → bun test → build). CI run status NOT verified — gh CLI not available in this environment; the push of this task's commit will trigger it and can be checked on GitHub.
+- next.config.ts: typescript.ignoreBuildErrors was REMOVED and examples/websocket deleted — repo-root `tsc --noEmit` is now fully clean (previously examples/ noise). Consistent with the CI gate.
+- T1–T12 touched the trust model (disabled accounts, role authority), review/dispute flow (review route rewritten ~163 lines changed), provenance/publication separation, boot-time migration sync + launch backfill in instrumentation. These are significant trust-model changes that arrived WITHOUT worklog entries — this section is the first record of them. No behavioral audit was performed (out of scope).
+- Test suite shrank 124 → 120 tests between Task 29 and now (4 tests removed by T1–T12 work, cause not investigated — plausibly the removed demo-access tests, unconfirmed).
+- docs/audit-2026-09-03/ was added by T1 (dependency inventory, npm advisories, input gap analysis) — an audit trail exists there but was not reviewed in this pass.
+- The Task 30 sanitization plan (sanitize.ts, upload re-encode via sharp, control-char stripping) remains UNIMPLEMENTED except for the item below.
+
+Change record (the only code change made):
+- src/lib/mail.ts: added escapeHtml() (&, <, >, ", ' entities) for interpolating user-controlled values into HTML email bodies.
+- src/app/api/auth/register/route.ts: the confirmation email's `Hi ${name}` now passes through escapeHtml. Previously a display name like `<a href="https://evil">x</a>` was mailed out as a live phishing link from the domain (real HTML injection). The magic-link email was already safe ("Hi," + server-built link only); no other HTML email interpolates user input (grep-verified).
+- Account data itself is unchanged — the display name is still stored as typed (React escapes it in the UI); only the email rendering path is hardened.
+- Verified: 120/120 tests pass (446 expects, fresh test db), eslint clean on both files, tsc --noEmit clean. Email body content itself not live-tested (requires RESEND_API_KEY; the unit-level behavior is straightforward string escaping).
+
+Stage Summary:
+- Email HTML injection closed with a 2-file change. origin/main = HEAD (6f18498 + worklog). Remaining Task 30 plan items (sanitize.ts, sharp re-encode of uploads, invisible-char stripping) are still pending and were intentionally not started here.
