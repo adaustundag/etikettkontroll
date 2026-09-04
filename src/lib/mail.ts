@@ -36,7 +36,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 // Public origin of this deployment, used to build sign-in links.
-// Priority: explicit APP_URL → proxy headers (Railway/Caddy) → request origin.
+// Priority: explicit APP_URL → proxy headers (Railway) → request origin.
 // HOSTNAME/PORT must never be used here: behind a reverse proxy they resolve
 // to 0.0.0.0:<port>, producing dead links (seen live on Railway).
 //

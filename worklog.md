@@ -606,3 +606,18 @@ Release note:
 
 Stage Summary:
 - Task 30 complete: input boundary hardening shipped across 7 phases (30-a..30-i + Phase 0), every phase with its own reviewable commit, recorded verification and honest limits. origin/main = d4e8ee6. 61 net-new regression tests (120 → 181).
+
+---
+Task ID: 31
+Agent: opencode (GLM-5.3-Flash, local)
+Task: Close audit I10's second half — verify whether the Caddyfile (with its query-selected XTransformPort proxy target) is active in production; remove it if dead scaffolding. Verify nothing breaks.
+
+Work Log:
+- VERIFICATION (is it used?): (1) Production start command is `NODE_ENV=production bun .next/standalone/server.js` (README + behavior) — Next.js serves directly; Railway's edge (server header railway-hikari) terminates HTTPS. No Caddy in the chain. (2) The only Caddy invoker is .zscripts/start.sh (`exec caddy run --config Caddyfile`) — a legacy z-ai workspace-template script (Chinese comments, hardcoded /home/z/my-project, mini-services orchestration) that nothing references: package.json start never calls it, no Dockerfile/railway.toml exists, CI runs `bun run test` only. (3) Live production probes: `?XTransformPort=9999` and `?XTransformPort=notaport` both return 200 from the real app (/api health JSON v0.3.0) — if the Caddyfile were active, port 81 would proxy to a dead/garbage port and 502. Conclusion: inactive, not exploitable; audit I10's "verify and remove" satisfied.
+- REMOVED: Caddyfile, .zscripts/build.sh, .zscripts/start.sh (the only files referencing Caddy). .zscripts' other scripts (dev.sh, mini-services-*, *-runtime-build.sh) kept — unrelated to Caddy, removal out of scope. The three tests/*.sh helpers reference .zscripts but none is executed by bun test or CI (verified by grep across tests/*.ts and the workflow).
+- mail.ts comment mentioning "Railway/Caddy" proxy headers updated to "Railway" (Caddy no longer part of any path).
+- VERIFICATION (nothing broke): bun run test → 181/181 (585 expects) via the isolated runner; eslint clean; tsc --noEmit clean repo-root; bun run build → green incl. standalone asset copy; production probes after deploy: /api 200 (version+commit+db ok), home SSR 200, /sok 200, /api/og 200, unknown barcode → 404. The three probes with XTransformPort variants re-run → still 200/ignored.
+- HONEST LIMITS: .zscripts/dev.sh still references the removed start.sh? No — dev.sh is the template's own dev loop (next dev), unrelated to start.sh; but the template's mini-services scripts now reference a build dir layout produced by the deleted build.sh. They were already non-functional in this repo (hardcoded /home/z/my-project paths) and remain unexecuted; if the operator ever wants the z-ai sandbox flow back, restore via git history.
+
+Stage Summary:
+- Dead template proxy removed from the repo; production serving path confirmed Caddy-free. origin/main = HEAD.
