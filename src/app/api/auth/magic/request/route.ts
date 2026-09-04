@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createHash, randomBytes } from 'crypto'
 import { db } from '@/lib/db'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { readBoundedJson } from '@/lib/payload'
+import { assertOptionalBoolean, assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 import { sendEmail, publicOrigin } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
@@ -18,8 +18,9 @@ export async function POST(req: NextRequest) {
   if (limited) return limited
 
   try {
-    const body = (await readBoundedJson<{ email?: string; popup?: boolean }>(req, 8 * 1024)) ?? {}
-    const email = (body.email || '').trim().toLowerCase()
+    const body = await readBoundedJsonObject(req, 8 * 1024)
+    const email = (assertOptionalStringField(body.email, 'email') ?? '').trim().toLowerCase()
+    const popup = assertOptionalBoolean(body.popup, 'popup') === true
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
       return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 })
     }
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
     })
 
     const origin = publicOrigin(req)
-    const popupSuffix = body.popup ? '&popup=1' : ''
+    const popupSuffix = popup ? '&popup=1' : ''
     const link = `${origin}/api/auth/magic/verify?token=${token}${popupSuffix}`
 
     const sent = await sendEmail(
@@ -65,6 +66,8 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ ok: true, emailed: false, devLink: link })
   } catch (err) {
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     console.error('magic request error', err)
     return NextResponse.json({ error: 'Could not create a sign-in link. Please try again.' }, { status: 500 })
   }

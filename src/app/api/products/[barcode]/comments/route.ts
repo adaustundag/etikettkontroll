@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { readBoundedJson } from '@/lib/payload'
+import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,8 +15,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bar
   if (limited) return limited
 
   const { barcode } = await params
-  const body = (await readBoundedJson<{ body?: string }>(req, 16 * 1024)) ?? ({} as { body?: string })
-  const text = (body.body || '').trim()
+  let text: string
+  try {
+    const body = await readBoundedJsonObject(req, 16 * 1024)
+    text = (assertOptionalStringField(body.body, 'body') ?? '').trim()
+  } catch (err) {
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
+    throw err
+  }
   if (text.length < 2) return NextResponse.json({ error: 'Comment is too short.' }, { status: 400 })
   if (text.length > 1000) return NextResponse.json({ error: 'Comment is too long (max 1000 characters).' }, { status: 400 })
 

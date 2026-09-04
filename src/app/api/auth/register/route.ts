@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
+import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 import { escapeHtml, mailConfigured, publicOrigin, sendEmail } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
@@ -42,10 +42,10 @@ export async function POST(req: NextRequest) {
   if (limited) return limited
 
   try {
-    const body = (await readBoundedJson<{ name?: string; email?: string; password?: string }>(req, 64 * 1024)) ?? {}
-    const name = (body.name || '').trim()
-    const email = (body.email || '').trim().toLowerCase()
-    const password = body.password || ''
+    const body = await readBoundedJsonObject(req, 64 * 1024)
+    const name = (assertOptionalStringField(body.name, 'name') ?? '').trim()
+    const email = (assertOptionalStringField(body.email, 'email') ?? '').trim().toLowerCase()
+    const password = assertOptionalStringField(body.password, 'password') ?? ''
 
     if (name.length < 2) return NextResponse.json({ error: 'Please use your real name (min 2 characters).' }, { status: 400 })
     if (name.length > 60) return NextResponse.json({ error: 'Name is too long (max 60 characters).' }, { status: 400 })
@@ -71,9 +71,8 @@ export async function POST(req: NextRequest) {
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return res
   } catch (err) {
-    if (err instanceof PayloadTooLargeError) {
-      return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
-    }
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     console.error('register error', err)
     return NextResponse.json({ error: 'Registration failed. Please try again.' }, { status: 500 })
   }

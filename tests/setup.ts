@@ -20,18 +20,31 @@ import { mock } from 'bun:test'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { spawnSync } from 'child_process'
 
 // --- 1. isolated database ---------------------------------------------------
 function resolveTestDbUrl(): string {
   const explicit = process.env.TEST_DATABASE_URL?.trim()
   if (explicit) return explicit
-  // Direct `bun test` (no runner): create a throwaway DB in the OS temp dir.
+  // Direct `bun test` (no runner): create a throwaway DB in the OS temp dir
+  // and push the schema into it, so the suite never uses the dev/demo DB.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ek-test-'))
   return `file:${path.join(dir, 'test.db')}`
 }
 const testDbUrl = resolveTestDbUrl()
 if (!testDbUrl.includes('ek-test-')) {
   throw new Error(`tests must use an ek-test-* database, got: ${testDbUrl}`)
+}
+// Solo mode needs the schema; the runner (TEST_DATABASE_URL set) already pushed.
+if (!process.env.TEST_DATABASE_URL) {
+  const pushed = spawnSync('bun', ['x', 'prisma', 'db', 'push', '--skip-generate'], {
+    env: { ...process.env, DATABASE_URL: testDbUrl },
+    stdio: 'pipe',
+    shell: process.platform === 'win32',
+  })
+  if (pushed.status !== 0) {
+    throw new Error('solo test mode: prisma db push failed for the temporary database')
+  }
 }
 process.env.DATABASE_URL = testDbUrl
 

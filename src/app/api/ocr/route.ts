@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
+import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -73,11 +73,17 @@ export async function POST(req: NextRequest) {
 
   try {
     // 12 MB covers a base64-encoded 8 MB image with headroom.
-    const body = (await readBoundedJson<{ image?: string }>(req, 12 * 1024 * 1024)) ?? {}
-    const image = body.image || ''
-    if (!image.startsWith('data:image/')) {
-      return NextResponse.json({ error: 'Send an image as a base64 data URL.' }, { status: 400 })
+    const body = await readBoundedJsonObject(req, 12 * 1024 * 1024)
+    const image = assertOptionalStringField(body.image, 'image') ?? ''
+    // Strict data-URL envelope (30B): exact MIME set + valid base64 + decoded
+    // byte cap. Arbitrary data:image/* content (SVG, GIF, oversized) is
+    // rejected here before any provider call. Actual pixel decoding happens
+    // in the shared image pipeline (30E).
+    const decoded = decodeImageDataUrl(image)
+    if (typeof decoded === 'string') {
+      return NextResponse.json({ error: decoded }, { status: 400 })
     }
+    void decoded // bytes validated here; pixel-level checks arrive with 30E
 
     const response = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -114,10 +120,34 @@ export async function POST(req: NextRequest) {
       nutrition: parsed.nutrition ?? null,
     } satisfies Partial<OcrResult>)
   } catch (err) {
-    if (err instanceof PayloadTooLargeError) {
-      return NextResponse.json({ error: 'Image payload is too large.' }, { status: 413 })
-    }
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     console.error('ocr error', err)
     return NextResponse.json({ error: 'Auto-fill is unavailable right now. Please type it manually.' }, { status: 502 })
   }
+}
+
+const OCR_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const OCR_DECODED_MAX_BYTES = 8 * 1024 * 1024
+
+/**
+ * Validate a base64 data URL and return its decoded bytes.
+ * Returns an error message string on invalid envelope, Uint8Array on success.
+ */
+function decodeImageDataUrl(value: string): Uint8Array | string {
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\r\n]+)$/.exec(value)
+  if (!m) return 'Send an image as a base64 data URL (JPEG, PNG or WebP).'
+  const b64 = m[2].replace(/\s+/g, '')
+  let bin: string
+  try {
+    bin = atob(b64)
+  } catch {
+    return 'The image data is not valid base64.'
+  }
+  const bytes = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+  if (bytes.byteLength > OCR_DECODED_MAX_BYTES) {
+    return 'Image is too large (max 8 MB).'
+  }
+  return bytes
 }

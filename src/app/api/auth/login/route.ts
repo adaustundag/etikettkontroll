@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { verifyPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
+import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,9 +13,9 @@ export async function POST(req: NextRequest) {
   if (limited) return limited
 
   try {
-    const body = (await readBoundedJson<{ email?: string; password?: string }>(req, 64 * 1024)) ?? {}
-    const email = (body.email || '').trim().toLowerCase()
-    const password = body.password || ''
+    const body = await readBoundedJsonObject(req, 64 * 1024)
+    const email = (assertOptionalStringField(body.email, 'email') ?? '').trim().toLowerCase()
+    const password = assertOptionalStringField(body.password, 'password') ?? ''
     // Cap inputs before they reach scrypt/DB — scrypt cost scales with input length.
     if (email.length > 254 || password.length > 200) {
       return NextResponse.json({ error: 'Email or password is too long.' }, { status: 400 })
@@ -46,9 +46,8 @@ export async function POST(req: NextRequest) {
     res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions())
     return res
   } catch (err) {
-    if (err instanceof PayloadTooLargeError) {
-      return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
-    }
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
     console.error('login error', err)
     return NextResponse.json({ error: 'Login failed. Please try again.' }, { status: 500 })
   }

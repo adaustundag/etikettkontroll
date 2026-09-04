@@ -82,27 +82,66 @@ export function verificationState(r: {
   return 'unverified'
 }
 
+/**
+ * Strict nutrition-value parsing (Task 30B / audit I03).
+ *
+ * Intentional absence (null/undefined/empty string) → null, preserving the
+ * form's "clear this field" semantics. Accepted values: finite JSON numbers
+ * and decimal strings with dot or Swedish comma. EVERYTHING else — objects,
+ * arrays, booleans, non-numeric or hex/scientific strings — throws instead
+ * of silently becoming null (which would publish an invalid correction as
+ * "value cleared"). Existing 0–10000 bounds are applied by the caller.
+ */
+export function parseNutritionValue(v: unknown, field: string): number | null {
+  if (v === null || v === undefined || v === '') return null
+  let n: number
+  if (typeof v === 'number') {
+    if (!Number.isFinite(v)) throw new SubmitError(`Nutrition value "${field}" must be a finite number.`)
+    n = v
+  } else if (typeof v === 'string') {
+    const s = v.trim().replace(',', '.')
+    if (s === '' || !/^\d+(\.\d+)?$/.test(s)) {
+      throw new SubmitError(`Nutrition value "${field}" must be a number (decimal comma is fine).`)
+    }
+    n = Number(s)
+    if (!Number.isFinite(n)) {
+      throw new SubmitError(`Nutrition value "${field}" must be a number.`)
+    }
+  } else {
+    throw new SubmitError(`Nutrition value "${field}" must be a number.`)
+  }
+  return n
+}
+
+/** Keep the old name as a thin wrapper for diff computation on stored (already valid) values. */
 function toNum(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null
   const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'))
   return Number.isFinite(n) ? n : null
 }
 
+/** String field from the payload; non-strings (objects/numbers/bools) are a deliberate 400, not a TypeError. */
+function text(v: unknown, field: string): string {
+  if (v === undefined || v === null) return ''
+  if (typeof v !== 'string') throw new SubmitError(`Field "${field}" must be text.`)
+  return v
+}
+
 export function extractLabelValues(payload: SubmitPayload): LabelValues {
   return {
-    name: (payload.name || '').trim(),
-    brand: (payload.brand || '').trim(),
-    ingredients: (payload.ingredients || '').trim(),
-    servingSize: (payload.servingSize || '').trim() || null,
-    calories: toNum(payload.calories),
-    protein: toNum(payload.protein),
-    carbs: toNum(payload.carbs),
-    sugars: toNum(payload.sugars),
-    fat: toNum(payload.fat),
-    salt: toNum(payload.salt),
-    frontImage: payload.frontImage || null,
-    ingredientsImage: payload.ingredientsImage || null,
-    nutritionImage: payload.nutritionImage || null,
+    name: text(payload.name, 'name').trim(),
+    brand: text(payload.brand, 'brand').trim(),
+    ingredients: text(payload.ingredients, 'ingredients').trim(),
+    servingSize: text(payload.servingSize, 'servingSize').trim() || null,
+    calories: parseNutritionValue(payload.calories, 'calories'),
+    protein: parseNutritionValue(payload.protein, 'protein'),
+    carbs: parseNutritionValue(payload.carbs, 'carbs'),
+    sugars: parseNutritionValue(payload.sugars, 'sugars'),
+    fat: parseNutritionValue(payload.fat, 'fat'),
+    salt: parseNutritionValue(payload.salt, 'salt'),
+    frontImage: text(payload.frontImage, 'frontImage') || null,
+    ingredientsImage: text(payload.ingredientsImage, 'ingredientsImage') || null,
+    nutritionImage: text(payload.nutritionImage, 'nutritionImage') || null,
   }
 }
 
@@ -211,7 +250,7 @@ async function awardKarma(tx: Prisma.TransactionClient, userId: string, delta: n
  *    pointer raises SubmitConflict (409) instead of silently overwriting.
  */
 export async function submitRevision(user: { id: string; name: string }, payload: SubmitPayload): Promise<SubmitResult> {
-  const barcode = (payload.barcode || '').replace(/\s+/g, '')
+  const barcode = text(payload.barcode, 'barcode').replace(/\s+/g, '')
   if (!/^\d{8,14}$/.test(barcode)) {
     throw new SubmitError('Barcode must be 8–14 digits (EAN-13 is standard on groceries).')
   }

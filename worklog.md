@@ -496,3 +496,23 @@ Work Log:
 
 Stage Summary:
 - Suite is now hermetic (unique DB/uploads per run, guards against dev/prod paths, flake structurally fixed), dependency graph is patched and pruned, sw.js cache generation advanced for the client-asset changes. origin/main = HEAD.
+
+---
+Task ID: 30-d (Task 30 Phase 30B — bounded bytes, runtime types, strict numerics)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30B from the implementation brief: true streaming byte caps, runtime shape/type validation at every JSON route, strict nutrition parsing, multipart envelope bound, 8 KiB caps on review/admin-import, deliberate 400/413 mapping.
+
+Work Log:
+- payload.ts rewritten: readBoundedBytes() streams the request body, counts Uint8Array bytes, cancels the reader the moment the cap would be exceeded (nothing oversized is ever fully buffered), treats Content-Length as a hint only, and handles aborted streams as deliberate errors instead of 500s. readBoundedJsonObject() replaces readBoundedJson<T>: rejects null/array/non-object bodies, and JSON parsing is explicitly NOT schema validation. New assert helpers (assertStringField / assertOptionalStringField / assertOptionalBoolean / assertOptionalInt) reject wrong primitive types instead of String()-coercing or trusting `as` casts. payloadErrorResponse() maps PayloadTooLargeError→413, MalformedBodyError→400 with the existing {error} envelope.
+- Routes migrated to the new contract, field asserts inside the mapped try/catch (a lesson from the first test run: asserts placed outside the mapping catch produced 500s instead of 400s): login, register, magic/request (popup now a strict boolean), comments, review (new 8 KiB cap, verdict/comment strictly typed), admin/import-off (new 8 KiB cap, startPage 1–1000 / pages 1–5 / withImages strict), products POST, OCR.
+- Strict numerics (I03): parseNutritionValue() in revisions.ts — null/undefined/'' keep clear-field semantics; finite JSON numbers and decimal strings (Swedish comma OK) accepted; objects/arrays/booleans/hex/scientific-notation/garbage now throw SubmitError→400 instead of silently becoming null. extractLabelValues() field access hardened with a text() guard (non-string name/brand/ingredients/servingSize/photos are deliberate 400s, not TypeError 500s).
+- OCR input envelope (partial I08): strict data-URL regex (image/jpeg|png|webp only), base64 decode + 8 MiB decoded cap before any provider call. Pixel-level decoding lands in 30E.
+- Upload route (I06 input side): the ENTIRE multipart envelope is now read through the bounded byte reader (9 MiB envelope cap, 413 on overflow) BEFORE formData() parses; body parsed from the capped buffer. Per-file 8 MiB / MIME allowlist messages unchanged. (Content re-encode still 30E.)
+- Search GET budgets (partial I09, route-level only per constraint): q sliced to 256 chars; page/pageSize parsed with an explicit null check — the first implementation had a real bug here (Number(null)=0 passed the isInteger check and collapsed pageSize to 1); fixed with intParam() which keeps defaults for absent params and rejects non-finite/non-integer supplied values back to defaults. search.ts SQL untouched.
+- TESTS: new tests/api/payload-hardening.test.ts — 10 real cases: 413 with Swedish multibyte overfill, malformed JSON 400, array body 400, wrong field types 400, review 8 KiB 413, admin cap behavior, object/boolean nutrition 400 (no silent null), decimal-comma acceptance, explicit-null clear semantics, comments type error 400. Suite: 132 tests / 463 expects, all passing via the isolated runner AND solo bun test (solo mode now pushes the schema into its temp DB itself; found and fixed during verification — solo runs previously hit a schema-less DB).
+- Two honest bugs found BY the new tests and fixed before commit: (1) the pageSize Number(null) regression above; (2) assert-placement producing 500s — both are exactly the class of bug 30B exists to prevent.
+- Verification (real runs): 132/132 ×2 modes, eslint clean, tsc clean, production build green.
+- HONEST LIMITS: streaming-cancel behavior (bytes rejected before full buffering) is asserted by cap behavior, not by instrumenting the stream; multipart duplicate-part rejection (exactly one file part) is NOT yet enforced — the brief's point 4 "require exactly one file part, reject duplicates" is only partially done (envelope bound done, part-count check pending 30E rework); proxy-level body limits remain an operator concern.
+
+Stage Summary:
+- Every JSON route now has a true streaming byte cap, runtime type guards and deliberate 400/413 mapping; nutrition corruption path closed. origin/main = HEAD.

@@ -2,18 +2,29 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { SubmitConflict, SubmitError, submitRevision } from '@/lib/revisions'
 import { enforceRateLimit } from '@/lib/rate-limit'
-import { PayloadTooLargeError, readBoundedJson } from '@/lib/payload'
+import { payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 import { searchProducts } from '@/lib/search'
-import type { SubmitPayload, SubmitResult } from '@/lib/types'
+import type { SubmitResult } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
 // GET /api/products?q=&page=&pageSize= — search (FTS trigram w/ LIKE fallback)
 // or, with an empty q, the recent-products list. Paginated.
+// Route-level budgets (30F keeps searchProducts' SQL untouched): absent
+// params keep defaults; supplied values must be finite integers or they are
+// rejected back to the default — `Number('Infinity')` and the `Number(null)`
+// = 0 trap are both avoided explicitly.
+function intParam(sp: URLSearchParams, name: string, fallback: number): number {
+  const raw = sp.get(name)
+  if (raw === null) return fallback
+  const n = Number(raw)
+  return Number.isFinite(n) && Number.isInteger(n) ? n : fallback
+}
+
 export async function GET(req: NextRequest) {
-  const q = (req.nextUrl.searchParams.get('q') || '').trim()
-  const page = Number(req.nextUrl.searchParams.get('page')) || 1
-  const pageSize = Number(req.nextUrl.searchParams.get('pageSize')) || 20
+  const q = (req.nextUrl.searchParams.get('q') || '').trim().slice(0, 256)
+  const page = intParam(req.nextUrl.searchParams, 'page', 1)
+  const pageSize = intParam(req.nextUrl.searchParams, 'pageSize', 20)
 
   const result = await searchProducts({ q, page, pageSize })
   return NextResponse.json(result)
@@ -28,14 +39,19 @@ export async function POST(req: NextRequest) {
   const limited = enforceRateLimit(req, 'submit', 20, 60_000, user.id)
   if (limited) return limited
 
+  let payload: Record<string, unknown>
   try {
-    const payload = (await readBoundedJson<SubmitPayload>(req, 256 * 1024)) ?? ({} as SubmitPayload)
-    const result: SubmitResult = await submitRevision(user, payload)
+    payload = await readBoundedJsonObject(req, 256 * 1024)
+  } catch (err) {
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
+    throw err
+  }
+
+  try {
+    const result: SubmitResult = await submitRevision(user, payload as never)
     return NextResponse.json(result)
   } catch (err) {
-    if (err instanceof PayloadTooLargeError) {
-      return NextResponse.json({ error: 'Request body is too large.' }, { status: 413 })
-    }
     if (err instanceof SubmitConflict) {
       // Optimistic concurrency: the product moved under the editor — never a
       // silent overwrite of newer data.

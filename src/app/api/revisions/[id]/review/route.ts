@@ -5,6 +5,7 @@ import { getSessionUser } from '@/lib/auth'
 import { computeTrust, rejectsNeededFor } from '@/lib/trust'
 import { evidenceCoverage, finalizePublication } from '@/lib/revisions'
 import { enforceRateLimit } from '@/lib/rate-limit'
+import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
 import type { LabelField } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -38,12 +39,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (limited) return limited
 
   const { id } = await params
-  const body = (await req.json().catch(() => ({}))) as { verdict?: string; comment?: string }
-  const verdict = body.verdict
+  let verdict: string | undefined
+  let comment: string | null
+  try {
+    const body = await readBoundedJsonObject(req, 8 * 1024)
+    verdict = assertOptionalStringField(body.verdict, 'verdict')
+    comment = (assertOptionalStringField(body.comment, 'comment') ?? '').trim() || null
+  } catch (err) {
+    const mapped = payloadErrorResponse(err)
+    if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })
+    throw err
+  }
   if (verdict !== 'approve' && verdict !== 'reject') {
     return NextResponse.json({ error: 'Verdict must be approve or reject.' }, { status: 400 })
   }
-  const comment = (body.comment || '').trim() || null
   if (comment && comment.length > 500) {
     return NextResponse.json({ error: 'Comment is too long (max 500 characters).' }, { status: 400 })
   }
