@@ -1,8 +1,8 @@
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
-import { randomUUID } from 'crypto'
 import { db } from '@/lib/db'
 import { uploadsDir } from '@/lib/uploads'
+import { normalizeImage, normalizedFileName } from '@/lib/image-normalize'
 
 /**
  * One-time bootstrap importer: pulls Swedish grocery products from Open Food
@@ -38,11 +38,6 @@ const LICENSE_DATA = 'OFF Database Contents License (DbCL v1.0); database licens
 const LICENSE_IMAGES = 'CC BY-SA 4.0 (Open Food Facts contributors)'
 
 const BARCODE_RE = /^\d{8,14}$/
-const IMAGE_EXT_BY_MIME: Record<string, string> = {
-  'image/jpeg': 'jpg',
-  'image/png': 'png',
-  'image/webp': 'webp',
-}
 
 type OffNutriments = Record<string, number | undefined>
 
@@ -149,19 +144,40 @@ async function offFetch(url: string): Promise<Response> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-/** Downloads the OFF front image into the local uploads store; the stored file name, or null on any failure. */
+/** Downloads the OFF front image, normalizes it (30E), stores it; file name or null on any failure. */
 async function saveImage(url: string): Promise<string | null> {
   try {
     const res = await offFetch(url)
     if (!res.ok) return null
-    const ext = IMAGE_EXT_BY_MIME[res.headers.get('content-type')?.split(';')[0] ?? '']
-    if (!ext) return null
-    const bytes = Buffer.from(await res.arrayBuffer())
-    if (bytes.byteLength === 0 || bytes.byteLength > 2 * 1024 * 1024) return null
-    const name = `${Date.now().toString(36)}-${randomUUID()}.${ext}`
+    // Content-Type is a hint; sharp's decode is the real gate (30E). The
+    // 2 MiB network budget is checked while streaming the response.
+    const reader = res.body?.getReader()
+    if (!reader) return null
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      total += value.byteLength
+      if (total > 2 * 1024 * 1024) {
+        await reader.cancel().catch(() => undefined)
+        return null
+      }
+      chunks.push(value)
+    }
+    const bytes = new Uint8Array(total)
+    let offset = 0
+    for (const c of chunks) {
+      bytes.set(c, offset)
+      offset += c.byteLength
+    }
+    // Same normalize-and-reencode pipeline as user uploads: strips EXIF and
+    // rejects non-raster payloads from the upstream-controlled URL.
+    const normalized = await normalizeImage(bytes)
+    const name = normalizedFileName(normalized)
     const dir = uploadsDir()
     await mkdir(dir, { recursive: true })
-    await writeFile(path.join(dir, name), bytes)
+    await writeFile(path.join(dir, name), normalized.bytes)
     return name
   } catch {
     return null

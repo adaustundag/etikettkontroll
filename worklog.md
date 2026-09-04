@@ -551,3 +551,21 @@ Stage Summary:
 
 PENDING (operator, new):
 - [ ] Set APP_URL on Railway (production) to the canonical https origin BEFORE or WITH this deploy — publicOrigin fails closed without it (by design).
+
+---
+Task ID: 30-g (Task 30 Phase 30E — image normalization pipeline)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30E from the implementation brief: src/lib/image-normalize.ts (validate-and-reencode via patched sharp 0.35.4), wired into uploads, OFF imports and OCR input. All new image paths share one pipeline; no bypass remains.
+
+Work Log:
+- src/lib/image-normalize.ts: normalizeImage() — sharp decode with failOn:'error' + 40MP input-pixel budget; DETECTED format must be jpeg/png/webp (success alone is not acceptance: SVG decodes and is rejected by the format gate); animated/multipage rejected via meta.pages; EXIF orientation baked with rotate() (stored upright, orientation tag then gone); resize inside 2000x2000 without enlargement; output is a fresh pixel encoding (no withMetadata → metadata stripped); post-encode self-check re-reads metadata and throws if exif/icc/xmp survived; stored extension derives from the OUTPUT format. Resource gates: one active decode per process + bounded pending queue (8) — overloads are REJECTED, never queued unbounded (explicitly not a Promise.race theater).
+- Upload route: buffer bounded (9 MiB envelope, 413) → client MIME demoted to a hint for error messages → normalizeImage decides → persist ONLY success under a fresh generated name; shape check added (exactly one 'file' part, no extras — the 30B leftover). No raw fallback on failure: 400, nothing persisted.
+- OFF import saveImage: response now read with a streaming 2 MiB byte cap (cancel on overflow — no more buffer-then-check), then the SAME normalize pipeline; content-type is a hint only; IMAGE_EXT_BY_MIME removed. Imported images get the same EXIF-stripping/re-encode as user uploads — the upstream-controlled SSRF-adjacent path can no longer land arbitrary bytes in the public store (host allowlist itself is 30F).
+- OCR route: after 30B's envelope check, decoded bytes now go through normalizeImage; the provider receives freshly encoded bytes as a data URL, never the raw client payload.
+- TESTS (tests/api/image-normalize.test.ts, 10 cases, REAL raster fixtures generated with sharp): format detection/round-trip for all three formats; EXIF strip proven by metadata read-back (exif undefined, orientation undefined, no Exif APP1 marker in bytes); EXIF rotation proven with a real orientation-6 fixture (60x40 stored → 40x60 upright) — created via sharp .withMetadata({orientation: 6}) after discovering .withExif writes Orientation as ASCII (string) which decoders read as 1 (fixture lesson recorded); oversize shrink to 2000px + no-enlargement; rejection of non-raster, truncated-JPEG (lenient decoders tolerate mangled streams — truncation is the reliable corruption), SVG disguise and old-style fake bytes; upload route 400 + nothing-persisted on corrupt input.
+- Old insecure fixtures REPLACED, not guarded around (brief instruction): upload.test.ts + uploads-serve.test.ts + ocr.test.ts now use sharp-generated real PNG/JPEG/WebP fixtures; the "137-byte PNG-magic" fixture now asserts a 400 (decoder not weakened to keep it green). Served-bytes assertions decode the stored file instead of comparing sizes.
+- Verification (real runs): 169 tests / 551 expects passing, eslint clean, tsc clean, production build green. sharp loaded version verified at runtime (0.35.4) in 30A.
+- HONEST LIMITS: concurrency/pixel-budget behavior is implemented with named constants but not load-tested against Railway memory (audit says measure before finalizing — operator follow-up); animation rejection is code-level (meta.pages>1) without an animated fixture (sharp cannot easily CREATE animated input fixtures here; the format gate would reject GIF anyway); XMP/ICC stripping is covered by the post-encode metadata self-check + PNG round-trip test, not by a dedicated XMP/ICC fixture; Linux native sharp build verified via CI's build step, not locally (Windows host).
+
+Stage Summary:
+- Every image entering the file store — user upload, OFF import, OCR — is decoded, bounded, re-encoded and metadata-stripped through one pipeline; corrupt/disguised payloads never persist. origin/main = HEAD.

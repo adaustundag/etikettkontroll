@@ -1,5 +1,6 @@
 import '../setup'
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test'
+import sharp from 'sharp'
 import { GET as ocrGET, POST as ocrPOST } from '@/app/api/ocr/route'
 import { createToken } from '@/lib/auth'
 import { mockAuth, req } from '../setup'
@@ -16,6 +17,12 @@ afterEach(() => {
   delete process.env.OCR_BASE_URL
   delete process.env.OCR_MODEL
 })
+
+/** Real decodable PNG as a data URL — the pipeline (30E) rejects fake bytes. */
+const tinyPngDataUrl = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 1, g: 2, b: 3 } } })
+  .png()
+  .toBuffer()
+  .then((b) => `data:image/png;base64,${b.toString('base64')}`)
 
 /** Fixed vision-provider reply matching what the prompt asks for. */
 const providerJson = JSON.stringify({
@@ -49,14 +56,14 @@ describe('GET /api/ocr — availability probe', () => {
 
 describe('POST /api/ocr — AI label auto-fill', () => {
   test('401 for anonymous users', async () => {
-    const res = await ocrPOST(req('POST', '/api/ocr', { image: 'data:image/png;base64,AAAA' }))
+    const res = await ocrPOST(req('POST', '/api/ocr', { image: tinyPngDataUrl }))
     expect(res.status).toBe(401)
   })
 
   test('503 when no vision provider is configured', async () => {
     const user = await mkUser()
     mockAuth(`Bearer ${createToken(user.id)}`)
-    const res = await ocrPOST(req('POST', '/api/ocr', { image: 'data:image/png;base64,AAAA' }))
+    const res = await ocrPOST(req('POST', '/api/ocr', { image: tinyPngDataUrl }))
     expect(res.status).toBe(503)
     const { error } = (await res.json()) as { error: string }
     expect(error).toContain('not configured')
@@ -77,7 +84,7 @@ describe('POST /api/ocr — AI label auto-fill', () => {
     const user = await mkUser()
     mockAuth(`Bearer ${createToken(user.id)}`)
     mockProvider({ status: 500 })
-    const res = await ocrPOST(req('POST', '/api/ocr', { image: 'data:image/png;base64,AAAA' }))
+    const res = await ocrPOST(req('POST', '/api/ocr', { image: tinyPngDataUrl }))
     expect(res.status).toBe(502)
   })
 
@@ -87,7 +94,7 @@ describe('POST /api/ocr — AI label auto-fill', () => {
     mockAuth(`Bearer ${createToken(user.id)}`)
     mockProvider(providerJson)
 
-    const res = await ocrPOST(req('POST', '/api/ocr', { image: 'data:image/png;base64,AAAA' }))
+    const res = await ocrPOST(req('POST', '/api/ocr', { image: tinyPngDataUrl }))
     expect(res.status).toBe(200)
     const body = (await res.json()) as {
       ingredients: string | null
@@ -117,7 +124,7 @@ describe('POST /api/ocr — AI label auto-fill', () => {
     const user = await mkUser()
     mockAuth(`Bearer ${createToken(user.id)}`)
     mockProvider('```json\n' + providerJson + '\n```')
-    const res = await ocrPOST(req('POST', '/api/ocr', { image: 'data:image/png;base64,AAAA' }))
+    const res = await ocrPOST(req('POST', '/api/ocr', { image: tinyPngDataUrl }))
     expect(res.status).toBe(200)
     const body = (await res.json()) as { nutrition: { calories: number } | null }
     expect(body.nutrition!.calories).toBe(520)

@@ -6,6 +6,18 @@ import { mockAuth, req } from '../setup'
 import { mkUser, wipeDb } from '../fixtures'
 import { uploadsDir } from '@/lib/uploads'
 import path from 'path'
+import sharp from 'sharp'
+
+// Real decodable fixtures (30E): the pipeline rejects fake bytes by design.
+const realPng = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 9, g: 9, b: 9 } } })
+  .png()
+  .toBuffer()
+const realJpeg = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 1, g: 1, b: 1 } } })
+  .jpeg()
+  .toBuffer()
+const realWebp = await sharp({ create: { width: 8, height: 8, channels: 3, background: { r: 2, g: 2, b: 2 } } })
+  .webp()
+  .toBuffer()
 
 beforeEach(async () => {
   await wipeDb()
@@ -59,9 +71,7 @@ describe('POST /api/upload', () => {
     mockAuth(`Bearer ${createToken(user.id)}`)
 
     const form = new FormData()
-    const bytes = new Uint8Array(137)
-    bytes[0] = 0x89 // PNG magic
-    form.append('file', new File([bytes], 'front.png', { type: 'image/png' }))
+    form.append('file', new File([new Uint8Array(realPng)], 'front.png', { type: 'image/png' }))
 
     const res = await uploadPOST(req('POST', '/api/upload', form))
     expect(res.status).toBe(200)
@@ -69,20 +79,21 @@ describe('POST /api/upload', () => {
     expect(url.startsWith('/uploads/')).toBe(true)
     expect(url.endsWith('.png')).toBe(true)
 
+    // The stored bytes are a real, decodable normalized PNG (not the input).
     const onDisk = path.join(uploadsDir(), url.replace('/uploads/', ''))
-    const written = await Bun.file(onDisk).arrayBuffer()
-    expect(written.byteLength).toBe(137)
+    const meta = await sharp(await Bun.file(onDisk).arrayBuffer()).metadata()
+    expect(meta.format).toBe('png')
   })
 
   test('accepts JPEG and WebP types too', async () => {
     const user = await mkUser()
-    for (const [type, ext] of [
-      ['image/jpeg', 'jpg'],
-      ['image/webp', 'webp'],
+    for (const [type, ext, bytes] of [
+      ['image/jpeg', 'jpg', realJpeg],
+      ['image/webp', 'webp', realWebp],
     ] as const) {
       mockAuth(`Bearer ${createToken(user.id)}`)
       const form = new FormData()
-      form.append('file', new File([new Uint8Array(10)], `f.${ext}`, { type }))
+      form.append('file', new File([new Uint8Array(bytes)], `f.${ext}`, { type }))
       const res = await uploadPOST(req('POST', '/api/upload', form))
       expect(res.status).toBe(200)
       const { url } = (await res.json()) as { url: string }

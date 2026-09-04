@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
+import { normalizeImage } from '@/lib/image-normalize'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -83,7 +84,20 @@ export async function POST(req: NextRequest) {
     if (typeof decoded === 'string') {
       return NextResponse.json({ error: decoded }, { status: 400 })
     }
-    void decoded // bytes validated here; pixel-level checks arrive with 30E
+    // 30E: pixel-level validation through the shared pipeline — what sharp
+    // cannot decode is not an image. The provider receives the freshly
+    // encoded bytes, never the raw client payload.
+    let normalized
+    try {
+      normalized = await normalizeImage(decoded)
+    } catch (err) {
+      console.error('ocr image rejected:', err instanceof Error ? err.message : err)
+      return NextResponse.json(
+        { error: 'Only JPEG, PNG or WebP images are supported.' },
+        { status: 400 },
+      )
+    }
+    const dataUrl = `data:${normalized.mime};base64,${Buffer.from(normalized.bytes).toString('base64')}`
 
     const response = await fetch(`${cfg.baseUrl}/chat/completions`, {
       method: 'POST',
@@ -99,7 +113,7 @@ export async function POST(req: NextRequest) {
             role: 'user',
             content: [
               { type: 'text', text: PROMPT },
-              { type: 'image_url', image_url: { url: image } },
+              { type: 'image_url', image_url: { url: dataUrl } },
             ],
           },
         ],

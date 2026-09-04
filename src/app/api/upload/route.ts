@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
-import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { readBoundedBytes } from '@/lib/payload'
+import { normalizeImage, normalizedFileName } from '@/lib/image-normalize'
 import { uploadsDir } from '@/lib/uploads'
 
 export const dynamic = 'force-dynamic'
@@ -51,7 +51,16 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'No file was sent.' }, { status: 400 })
   }
+  // Exactly one part named 'file', no unexpected extras (30B/30E): the
+  // envelope budget bounds SIZE, this bounds SHAPE.
+  const partNames = [...(form as FormData).keys()]
+  const fileParts = (form as FormData).getAll('file')
+  if (fileParts.length !== 1 || partNames.length !== 1) {
+    return NextResponse.json({ error: 'No file was sent.' }, { status: 400 })
+  }
 
+  // Client MIME is a hint, never trust (30E): the declared type only picks
+  // the friendly error message; the REAL format decision is sharp's decode.
   const ext = MIME_EXT[file.type]
   if (!ext) {
     return NextResponse.json({ error: 'Only JPEG, PNG or WebP images are supported.' }, { status: 400 })
@@ -62,11 +71,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Image is too large (max 8 MB).' }, { status: 400 })
   }
 
-  // Generated name only — never trust the client-supplied filename.
-  const name = `${Date.now().toString(36)}-${randomUUID()}.${ext}`
+  // Decode-validate-reencode (30E): rejects polyglots/polyglot-adjacent
+  // containers, animated images, and strips EXIF (incl. GPS) + XMP + ICC.
+  // The stored extension derives from the OUTPUT format, not the claim.
+  let normalized
+  try {
+    normalized = await normalizeImage(new Uint8Array(bytes))
+  } catch (err) {
+    console.error('upload normalization failed:', err instanceof Error ? err.message : err)
+    return NextResponse.json(
+      { error: 'Only JPEG, PNG or WebP images are supported.' },
+      { status: 400 },
+    )
+  }
+
+  // Persist ONLY successfully normalized output, under a fresh generated name.
+  const name = normalizedFileName(normalized)
   const dir = uploadsDir()
   await mkdir(dir, { recursive: true })
-  await writeFile(path.join(dir, name), bytes)
+  await writeFile(path.join(dir, name), normalized.bytes)
 
   return NextResponse.json({ url: `/uploads/${name}` })
 }
