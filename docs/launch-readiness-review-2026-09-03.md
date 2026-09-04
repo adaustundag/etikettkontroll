@@ -144,3 +144,88 @@ References: `src/lib/route.ts:49`, `:102`; `src/lib/router.ts:86`; `src/componen
 The most valuable automated acceptance cases are: an import never gains a reviewed label anywhere; missing evidence blocks every verified publication path; a rejection remains blocking until resolved; a stale-base submission cannot overwrite a newer publication; replacing the current publication does not erase prior events; and a transcription correction is not advertised as a physical product change. Add a cache/reconnect test if offline product pages remain enabled.
 
 After these gates, announce a focused public beta seeking contributors and reviewers, centered on a real evidenced change. Broader catalog coverage, automated price collection, more OCR providers and infrastructure expansion can follow. The launch story should demonstrate **what changed, when it was observed, and the evidence supporting it**.
+
+## Historical photo retention architecture — added 4 September 2026
+
+Historical label photos should be retained as evidence for every published version and packaging observation. The current revision columns store mutable-looking URL strings, while the upload flow stores a normalized file without a database asset record. Superseding a revision happens to leave its URL intact, but there is no retention contract, referential integrity, file hash, availability state, or safe way to restrict one image without losing the audit trail.
+
+Treat the server-normalized image as the canonical evidence master. The current image pipeline decodes, re-encodes and strips metadata, so the UI and documentation must not call it the untouched camera original. Do not retain the pre-normalized upload by default. Preserve the normalized master plus generated display renditions.
+
+### Target model
+
+- `EvidenceAsset`: opaque ID, generated storage key, SHA-256, byte count, MIME type, width/height, origin (`human`, `openfoodfacts`, `legacy`), uploader when applicable, source URL/ID, image license, upload/import time, availability state (`available`, `restricted`, `removed`) and retention class.
+- `EvidenceRendition`: asset ID, kind (`thumbnail`, `display`), storage key, dimensions, byte count, SHA-256 and transformation version. Renditions may be regenerated; the canonical master remains immutable.
+- `RevisionEvidence`: revision ID, asset ID and role (`front`, `ingredients`, `nutrition`, `quantity`, `other`). A transcription correction may intentionally reuse the same assets. A new physical observation must explicitly link its own evidence.
+- `ObservationEvidence`: observation ID, asset ID and role. This makes the photo support the physical observation as well as its transcription.
+- `EvidenceEvent`: append-only audit entry for ingestion, linking, restriction, removal or restoration, with actor, time and reason. Removing bytes leaves a tombstone, hash and audit history.
+
+Use real foreign keys for these relationships. Add foreign-key-backed relations for the existing current revision and published observation references as part of the same schema cleanup. Keep the existing image URL columns temporarily for migration compatibility, then remove them only after all records are reconciled.
+
+```mermaid
+flowchart LR
+  U[Upload or permitted import] --> N[Decode, normalize and hash]
+  N --> A[Immutable EvidenceAsset]
+  A --> D[Thumbnail and display renditions]
+  A --> RE[RevisionEvidence roles]
+  A --> OE[ObservationEvidence roles]
+  RE --> V[Evidence-aware review]
+  OE --> C[Before/after observation comparison]
+  V --> H[Permanent historical version]
+  C --> H
+```
+
+### Storage and serving rules
+
+- Introduce an `EvidenceStore` interface now, backed by the existing persistent volume. Its operations should cover put-once, read, existence, and restricted deletion by opaque key. This keeps a later object-storage move outside domain logic.
+- Generate storage keys on the server and never overwrite an existing key. Calculate the hash and decoded dimensions from the stored normalized bytes.
+- Serve public renditions through an asset-ID route which checks the database availability state. Canonical masters should use an authenticated or operator-only route. Do not expose filesystem paths.
+- Retain assets referenced by a verified or historical publication, an observation used in a change claim, or an unresolved dispute. Superseding a version must never release those references.
+- Give unsubmitted/orphan uploads and rejected, never-published submissions a configurable cleanup period. Cleanup must first prove that no protected reference exists and must record what it removed.
+- A restricted or removed image remains visible as an unavailable-evidence tombstone. Recalculate the record's current evidence availability; never silently continue showing it as fully evidenced.
+- Include the database and evidence store in one recovery procedure. A database-only backup cannot restore this product's proof.
+
+### Migration sequence
+
+1. Add the asset/link/event tables and storage abstraction without changing current reads.
+2. Run a dry-run inventory of every legacy photo URL: role, referring revisions, file existence, size, decoded type and hash. Report missing, malformed and duplicate content.
+3. Back up the database and uploads together. Insert asset and link records idempotently; mark missing legacy files as unavailable rather than inventing evidence.
+4. Deploy dual-read compatibility, then switch all new uploads/imports and publication checks to asset IDs.
+5. Reconcile every published revision and observation. Switch history and comparison UI to the new relations.
+6. Stop writing legacy URL columns. Remove them in a later versioned migration only after the reconciliation report has zero unexplained records. Do not delete legacy files during the schema migration.
+
+### User experience
+
+- The current overview shows current evidence. History shows the photos attached to each older version.
+- The before/after view places the two observations' relevant photos side by side and labels their observed date or honest date range. Upload and publication times stay separately labeled.
+- Corrections show that they reuse an existing observation's evidence. They do not look like a newly photographed package.
+- Historical screens say that older packaging may differ from the currently sold product.
+- Restricted evidence shows the reason category and preserved audit metadata without serving the bytes.
+
+### Acceptance criteria
+
+- Publishing or superseding version N+1 leaves every evidence asset for version N reachable from history.
+- The publication service checks eligible linked evidence assets, their roles and availability; URL shape or file existence alone is insufficient.
+- Approving a disputed revision uses the same evidence policy as ordinary approval.
+- A correction can reuse evidence without creating a new observation; a packaging-change claim requires two separately identified observations.
+- Asset keys are immutable and hashes remain stable. Public renditions can be regenerated without changing the canonical asset identity.
+- Restricting an image stops public byte delivery, preserves its audit entry and prevents the affected record from claiming complete current evidence.
+- Cleanup cannot delete assets referenced by published history, observations, change claims or disputes.
+- The legacy migration is dry-run capable, idempotent, reports missing files, and never upgrades missing evidence to verified.
+- A restore rehearsal proves that historical database rows and their corresponding evidence objects recover together.
+
+The copy-ready implementation item is in `docs/glm-launch-checklist-addendum-historical-photos.md`. It should be implemented alongside the observation model and before the legacy-data migration and public-beta story work.
+
+## Reassessment — 4 September 2026
+
+The deployed application now reports version `0.3.0` at commit `a75b3e7b356733d87cc053e0bec98031c953c184`, matching `origin/main`. GitHub Actions completed successfully for that commit. Local TypeScript, ESLint and a direct Next production build also passed; the build emitted warnings because `instrumentation.ts` statically imports Node-only APIs while Next also analyzes it for the Edge runtime. The Bun API suite was not repeated locally because Bun is unavailable on this machine, but it ran in the successful CI workflow.
+
+Material improvements confirmed in production include structured unverified-import presentation, zero imported items counted as reviewed changes, hidden raw import nutrition/allergen data, removal of public demo credentials, real unknown-route handling, deterministic product dates, a deployed commit in health output, and a public-beta page which honestly reports that no verified stories exist yet.
+
+Four items should be resolved before the LinkedIn announcement:
+
+1. **Close the dispute-resolution publication bypass.** Ordinary review checks evidence immediately before publication, but `POST /api/revisions/[id]/dispute` calls `finalizePublication()` directly on approval. That helper does not enforce evidence. Move the policy into the single publication service and test both entry points.
+2. **Connect observations and evidence to behavior.** `PackagingObservation` exists only in the schema; current application code does not create, read, compare or display it. It has one evidence URL and string identifiers rather than the historical photo relations above. The beta page therefore shows verified database corrections, not evidenced packaging-change stories.
+3. **Correct stale public and contributor copy.** README and both language dictionaries still say single-field or trusted submissions publish instantly. Submission code correctly makes every contribution pending. Product metadata also contains the old L2 instant-publication promise, and the English beta title contains an accidental hyphen.
+4. **Make startup fail closed on migration failure and rehearse recovery.** Boot migration errors are logged and startup continues, which can run new code against an old schema. Run migrations as an explicit release/start step or terminate startup when they fail. Remove the permanent one-shot probe cleanup from normal startup after it has completed. The documented backup/restore procedure is still explicitly unrehearsed.
+
+The product has moved from “do not announce as reviewed” to “credible internal beta foundation.” A LinkedIn announcement should wait for the four items above and at least one real, reviewed before/after observation. The remaining gap is now evidence content and workflow completion, not a need to replace the application stack.

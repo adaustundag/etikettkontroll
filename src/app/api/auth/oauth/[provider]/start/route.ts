@@ -9,6 +9,7 @@ import {
   providerLabel,
   saveState,
 } from '@/lib/oauth'
+import { publicOrigin } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,6 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
   }
   await saveState(p, state)
 
-  const origin = req.nextUrl.origin
+  // Behind a reverse proxy, nextUrl.origin resolves to the internal bind
+  // address (the same dead-link bug the magic-link flow had) — use the
+  // hardened public origin (APP_URL in production) for the redirect_uri.
+  const origin = publicOrigin(req)
   return NextResponse.redirect(buildAuthorizeUrl(p, origin, state))
 }

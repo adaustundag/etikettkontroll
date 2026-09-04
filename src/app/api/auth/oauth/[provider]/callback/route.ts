@@ -8,6 +8,7 @@ import {
   oauthErrorMessage,
   resolveOAuthUser,
 } from '@/lib/oauth'
+import { publicOrigin } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,9 +34,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ prov
     const code = url.searchParams.get('code')
     if (!code) return NextResponse.json({ error: 'Missing authorization code.' }, { status: 400 })
 
-    const profile = await exchangeCodeForProfile(p, code, url.origin, state)
+    const profile = await exchangeCodeForProfile(p, code, publicOrigin(req), state)
     const user = await resolveOAuthUser(p, profile.providerId, profile.email, profile.name)
-    return finishSession(user.id, url.origin, state.p)
+    return finishSession(user.id, publicOrigin(req), state.p)
   } catch (err) {
     console.error(`oauth ${p} callback error`, err)
     return NextResponse.json({ error: oauthErrorMessage(err) }, { status: 400 })
