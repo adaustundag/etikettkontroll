@@ -16,7 +16,7 @@
  * hashed chunks no longer exist on the server). Everything older is deleted.
  */
 
-const VERSION = 'v0.2.2';
+const VERSION = 'v0.3.0';
 
 const STATIC_CACHE = `ek-static-${VERSION}`;
 const UPLOADS_CACHE = `ek-uploads-${VERSION}`;

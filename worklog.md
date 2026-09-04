@@ -477,3 +477,22 @@ Disposition: Phase order confirmed (30A deps/test-isolation → 30B bytes/types 
 
 Stage Summary:
 - Audit remains applicable at a946901 with two closed items and refreshed line references. origin/main = HEAD.
+
+---
+Task ID: 30-c (Task 30 Phase 30A — baseline, test isolation, dependency patch)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30A from docs/audit-2026-09-03/glm-5.3-flash-implementation-brief.md: record a real baseline, fix test isolation, upgrade patched framework/native deps, remove confirmed-unused packages, bump sw.js VERSION (client deps changed).
+
+Work Log:
+- BASELINE (recorded, real run): HEAD f8b352c, Bun 1.4.0 / Node 24.20.0 (win32), 120 tests / 446 expects all passing before changes. Locked deps at start: next 16.1.1, react/react-dom 19.0.0, sharp 0.34.3, prisma 6.11.1.
+- TEST ISOLATION: new tests/run-isolated.ts — per-run unique SQLite DB + disposable UPLOADS_DIR under OS tmpdir, prisma db push into it, `bun test` with TEST_DATABASE_URL/UPLOADS_DIR exported, cleanup of only that temp dir afterwards. Guards: refuses an inherited DATABASE_URL not containing the runner's ek-test- marker, and every path is verified inside the temp dir before use. `bun run test` now runs the runner; `bun run test:direct` kept for plain `bun test`. tests/setup.ts: honors TEST_DATABASE_URL, and when started directly creates its own ek-test-* temp DB — plus a hard throw if the resolved URL is not an ek-test-* database, so the suite can never silently touch db/test.db or any dev/prod DB again. upload.test.ts + fixtures.ts evidencePhoto now write only into the run's UPLOADS_DIR (previously public/uploads with manual unlink lists). Removed test debris from the old harness (db/test.db, 3 test-*.png in public/uploads — all gitignored, verified untracked before deletion).
+- Flake proof: three consecutive full runs green (the Task 28 note warned back-to-back runs shared db/test.db; now each run has its own DB).
+- UNUSED DEPENDENCIES (verified before deletion, not trusted from the audit): recharts imported only by orphan src/components/ui/chart.tsx (the sole dangerouslySetInnerHTML in the repo), which nothing imports — both removed. next-auth and next-intl: zero imports in src/ — removed via bun remove. This also kills the last dangerouslySetInnerHTML in the codebase (chart.tsx).
+- UPGRADES: next 16.1.1 → 16.3.4, eslint-config-next → 16.3.4, react/react-dom 19.0.0 → 19.2.8 (paired), sharp 0.34.3 → 0.35.4 (patched native parser, prerequisite for 30E image pipeline). Clean install with --frozen-lockfile (755 packages). Runtime-verified loaded sharp: 0.35.4 (sharp.versions, not just package.json). Prisma client regenerated after reinstall.
+- BUILD PORTABILITY: package.json build script's `cp -r` failed on Windows (bun shell lacks cp -r; CI/Linux unaffected) — replaced with a bun -e fs.cpSync one-liner; production build now passes locally AND on Linux.
+- VERSION BUMP: package.json 0.2.1 → 0.3.0, src/lib/site.ts APP_VERSION → 0.3.0, public/sw.js VERSION v0.2.2 → v0.3.0 (the audit's explicit exception: this release changes framework/client assets, so the no-bump rule does not apply).
+- Verification (all real runs): bun run test → 120 pass / 0 fail / 446 expects (×3 consecutive); eslint → clean; tsc --noEmit → clean (repo root, zero errors after regen); bun run build → green including standalone asset copy. NOTE: tsc is now stricter than before because T7–T12 removed ignoreBuildErrors — any new type error fails the build.
+- HONEST LIMITS: CI run status for this push not yet observed from this environment (no gh CLI; check GitHub after push). Linux standalone artifact not locally inspected (Windows host) — CI's build step covers the Linux compile; the 30G release gate re-checks the deployed runtime. Advisory re-audit of the final lock deferred to 30G per brief.
+
+Stage Summary:
+- Suite is now hermetic (unique DB/uploads per run, guards against dev/prod paths, flake structurally fixed), dependency graph is patched and pruned, sw.js cache generation advanced for the client-asset changes. origin/main = HEAD.

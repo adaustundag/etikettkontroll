@@ -160,17 +160,17 @@ export async function mkPending(
 }
 
 // --- evidence photos (T3 evidence gate) ---------------------------------------
-const EVIDENCE_DIR = path.join(process.cwd(), 'public', 'uploads')
+import { uploadsDir } from '@/lib/uploads'
 const written = new Set<string>()
 
-/** Writes a tiny real file into the uploads dir and returns its /uploads/ URL. */
+/** Writes a tiny real file into the run's uploads dir and returns its /uploads/ URL. */
 export async function evidencePhoto(kind: 'front' | 'ingredients' | 'nutrition'): Promise<string> {
   const name = `test-${kind}.png`
   if (!written.has(name)) {
-    mkdirSync(EVIDENCE_DIR, { recursive: true })
+    mkdirSync(uploadsDir(), { recursive: true })
     // 1x1 transparent PNG
     writeFileSync(
-      path.join(EVIDENCE_DIR, name),
+      path.join(uploadsDir(), name),
       Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64'),
     )
     written.add(name)

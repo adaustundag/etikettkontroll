@@ -4,20 +4,36 @@
  * This file MUST be the first import in every test file:
  *   import '../setup'
  *
- * It does two things, in this order:
- *  1. Points Prisma at an isolated test database (db/test.db) so the suite
- *     never touches the dev/demo database. Bun auto-loads .env, so we force
- *     the variable instead of relying on ||.
- *  2. Replaces `next/headers` with an in-memory request context. Route
+ * It does three things, in this order:
+ *  1. Points Prisma at an isolated test database. The canonical entry is
+ *     tests/run-isolated.ts, which creates a unique temp-dir DB per run and
+ *     exports TEST_DATABASE_URL. When the suite is started directly (bun test
+ *     without the runner), setup.ts creates that same kind of disposable DB
+ *     itself so the suite can never silently use the dev/demo database.
+ *  2. Refuses to run destructive operations against dev/prod-like paths.
+ *  3. Replaces `next/headers` with an in-memory request context. Route
  *     handlers call cookies()/headers() which normally require a Next.js
  *     request scope — the mock lets us invoke the handlers directly under
  *     `bun test` and control auth (bearer header + cookie jar) per test.
  */
 import { mock } from 'bun:test'
+import fs from 'fs'
+import os from 'os'
 import path from 'path'
 
 // --- 1. isolated database ---------------------------------------------------
-process.env.DATABASE_URL = 'file:' + path.join(process.cwd(), 'db', 'test.db')
+function resolveTestDbUrl(): string {
+  const explicit = process.env.TEST_DATABASE_URL?.trim()
+  if (explicit) return explicit
+  // Direct `bun test` (no runner): create a throwaway DB in the OS temp dir.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ek-test-'))
+  return `file:${path.join(dir, 'test.db')}`
+}
+const testDbUrl = resolveTestDbUrl()
+if (!testDbUrl.includes('ek-test-')) {
+  throw new Error(`tests must use an ek-test-* database, got: ${testDbUrl}`)
+}
+process.env.DATABASE_URL = testDbUrl
 
 // --- 2. controllable request context ----------------------------------------
 type Ctx = { headers: Record<string, string>; cookies: Record<string, string> }

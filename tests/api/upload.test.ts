@@ -1,23 +1,14 @@
 import '../setup'
-import { afterAll, beforeEach, describe, expect, test } from 'bun:test'
-import { unlink } from 'fs/promises'
-import path from 'path'
+import { beforeEach, describe, expect, test } from 'bun:test'
 import { POST as uploadPOST } from '@/app/api/upload/route'
 import { createToken } from '@/lib/auth'
 import { mockAuth, req } from '../setup'
 import { mkUser, wipeDb } from '../fixtures'
-
-const createdFiles: string[] = []
+import { uploadsDir } from '@/lib/uploads'
+import path from 'path'
 
 beforeEach(async () => {
   await wipeDb()
-})
-
-afterAll(async () => {
-  // remove files written to public/uploads during the test run
-  for (const f of createdFiles) {
-    await unlink(f).catch(() => undefined)
-  }
 })
 
 function pngFile(size = 100): File {
@@ -78,8 +69,7 @@ describe('POST /api/upload', () => {
     expect(url.startsWith('/uploads/')).toBe(true)
     expect(url.endsWith('.png')).toBe(true)
 
-    const onDisk = path.join(process.cwd(), 'public', url)
-    createdFiles.push(onDisk)
+    const onDisk = path.join(uploadsDir(), url.replace('/uploads/', ''))
     const written = await Bun.file(onDisk).arrayBuffer()
     expect(written.byteLength).toBe(137)
   })
@@ -97,7 +87,6 @@ describe('POST /api/upload', () => {
       expect(res.status).toBe(200)
       const { url } = (await res.json()) as { url: string }
       expect(url.endsWith(`.${ext}`)).toBe(true)
-      createdFiles.push(path.join(process.cwd(), 'public', url))
     }
   })
 })

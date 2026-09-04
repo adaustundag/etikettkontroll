@@ -4,7 +4,7 @@
 // variable is missing.
 
 /** Bumped alongside package.json when shipping. */
-export const APP_VERSION = '0.2.1'
+export const APP_VERSION = '0.3.0'
 
 export function siteUrl(): string {
   const explicit = process.env.APP_URL?.trim() || process.env.NEXT_PUBLIC_SITE_URL?.trim()
