@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/password'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
+import { cleanText } from '@/lib/sanitize'
 import { escapeHtml, mailConfigured, publicOrigin, sendEmail } from '@/lib/mail'
 
 export const dynamic = 'force-dynamic'
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await readBoundedJsonObject(req, 64 * 1024)
-    const name = (assertOptionalStringField(body.name, 'name') ?? '').trim()
+    const name = cleanText(assertOptionalStringField(body.name, 'name') ?? '')
     const email = (assertOptionalStringField(body.email, 'email') ?? '').trim().toLowerCase()
     const password = assertOptionalStringField(body.password, 'password') ?? ''
 

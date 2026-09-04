@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { finishSession } from '@/lib/oauth'
 import { enforceRateLimit } from '@/lib/rate-limit'
+import { cleanText, truncateDisplay } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,14 +29,17 @@ export async function GET(req: NextRequest) {
 
     let user = await db.user.findUnique({ where: { email: record.email } })
     if (!user) {
-      const local = record.email.split('@')[0].replace(/[._-]+/g, ' ').trim()
+      // Generated display name from the email local part — display-only text
+      // (30C): cleaned + grapheme-safe truncation. Never applied to the email
+      // identity itself.
+      const local = cleanText(record.email.split('@')[0].replace(/[._-]+/g, ' '))
       const name =
         local
           .split(' ')
           .filter(Boolean)
           .map((w) => w[0].toUpperCase() + w.slice(1))
           .join(' ') || 'Member'
-      user = await db.user.create({ data: { email: record.email, name: name.slice(0, 40), passwordHash: null } })
+      user = await db.user.create({ data: { email: record.email, name: truncateDisplay(name, 40), passwordHash: null } })
     }
     if (user.disabledAt) {
       return NextResponse.json({ error: 'This account has been disabled.' }, { status: 403 })

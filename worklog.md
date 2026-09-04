@@ -516,3 +516,19 @@ Work Log:
 
 Stage Summary:
 - Every JSON route now has a true streaming byte cap, runtime type guards and deliberate 400/413 mapping; nutrition corruption path closed. origin/main = HEAD.
+
+---
+Task ID: 30-e (Task 30 Phase 30C — data-preserving text normalization)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: 30C from the implementation brief: src/lib/sanitize.ts with the audit's data-preserving contract, wired into the five write paths. No clipping of evidence, no NFKC, no ASCII folding, joiners/combining marks preserved.
+
+Work Log:
+- src/lib/sanitize.ts: stripInvisible (removes C0-except-LF, DEL, C1, U+200B, U+200E–F, U+202A–E, U+2066–9, BOM; deliberately KEEPS U+200C/U+200D joiners, variation selectors, combining marks, åäö), cleanText (single-line: CRLF/CR→LF→spaces, tabs+U+2028/9→spaces, strip, trim), cleanMultiline (CRLF/CR→LF preserved, tabs→spaces, strip, trim), escapeHtml (moved here as single source; mail.ts re-exports), truncateDisplay (grapheme-safe via Intl.Segmenter with fallback, ellipsis, FOR GENERATED STRINGS ONLY — magic/OAuth display names, OG previews; submitted evidence is never clipped).
+- Wiring (server-side, before existing length checks which stay authoritative): revisions.ts extractLabelValues (name/brand→cleanText, ingredients→cleanMultiline, servingSize→cleanText); comments route body→cleanMultiline; review route comment→cleanMultiline; register display name→cleanText; magic/verify generated name→cleanText+truncateDisplay(40); OAuth provider names→cleanText in profile exchange + truncateDisplay(60) with 'Member' fallback in resolveOAuthUser. Emails, passwords, tokens, barcodes, email identity: untouched by display-text cleanup, per the audit's identity-policy split.
+- Invisible-only submissions now collapse to empty and fail the EXISTING min-length checks with their existing messages (no new error surface).
+- TESTS: tests/api/sanitize.test.ts — 19 cases: zero-width/bidi/C1/DEL/BOM stripping, LF+Swedish preservation, ZWNJ/ZWJ family-emoji/variation-selector/combining-mark preservation, line-break/tab conversion, no-clip guarantees (500-char single-line, 8000-char evidence), invisible-only collapse, escapeHtml five chars + Swedish passthrough, grapheme-safe truncation. Two of my initial test EXPECTATIONS were wrong (controls are removed not space-replaced; trailing-trim on repeat-constructed evidence) — code was correct per contract, tests fixed, not the implementation.
+- Verification (real runs): 151 tests / 491 expects passing, eslint clean, tsc clean, production build green.
+- HONEST LIMITS: this is a deliberately selected character set, not a promise against all Unicode confusables (audit wording kept); stored legacy text is not retroactively cleaned (out of scope per audit); no NFKC normalization was added (deliberate — it would rewrite label evidence).
+
+Stage Summary:
+- Stored label/comment/name text is now free of invisible obfuscation while preserving Swedish typography, joined emoji and script shaping. origin/main = HEAD.

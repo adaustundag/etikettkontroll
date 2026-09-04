@@ -6,6 +6,7 @@ import { computeTrust, rejectsNeededFor } from '@/lib/trust'
 import { evidenceCoverage, finalizePublication } from '@/lib/revisions'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
+import { cleanMultiline } from '@/lib/sanitize'
 import type { LabelField } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const body = await readBoundedJsonObject(req, 8 * 1024)
     verdict = assertOptionalStringField(body.verdict, 'verdict')
-    comment = (assertOptionalStringField(body.comment, 'comment') ?? '').trim() || null
+    comment = cleanMultiline(assertOptionalStringField(body.comment, 'comment') ?? '') || null
   } catch (err) {
     const mapped = payloadErrorResponse(err)
     if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })

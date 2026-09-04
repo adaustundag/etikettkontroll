@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/auth'
 import { enforceRateLimit } from '@/lib/rate-limit'
 import { assertOptionalStringField, payloadErrorResponse, readBoundedJsonObject } from '@/lib/payload'
+import { cleanMultiline } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bar
   let text: string
   try {
     const body = await readBoundedJsonObject(req, 16 * 1024)
-    text = (assertOptionalStringField(body.body, 'body') ?? '').trim()
+    text = cleanMultiline(assertOptionalStringField(body.body, 'body') ?? '')
   } catch (err) {
     const mapped = payloadErrorResponse(err)
     if (mapped) return NextResponse.json(mapped.body, { status: mapped.status })

@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { escapeHtml } from '@/lib/sanitize'
 
 /**
  * Email delivery (Resend) + helpers shared by the magic-link sign-in flow and
@@ -10,19 +11,9 @@ export function mailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY)
 }
 
-/**
- * Escape a user-controlled value before interpolating it into an HTML email
- * body. Without this, a display name like `<a href="https://evil">…</a>`
- * would be mailed out as a live link from our domain (HTML injection).
- */
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+// escapeHtml lives in lib/sanitize.ts (single source of truth, Task 30C);
+// re-exported here because email templates are its primary consumers.
+export { escapeHtml }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY

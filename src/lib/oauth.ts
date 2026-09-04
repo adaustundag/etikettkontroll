@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { createToken, SESSION_COOKIE, sessionCookieOptions } from '@/lib/auth'
+import { cleanText, truncateDisplay } from '@/lib/sanitize'
 
 /**
  * Hand-rolled OAuth (authorization-code flow) for Google + Facebook, wired
@@ -159,7 +160,7 @@ export async function exchangeCodeForProfile(
     const u = (await res.json()) as { sub: string; email?: string; email_verified?: boolean; name?: string }
     if (!u.email) throw new Error('no_email')
     if (u.email_verified === false) throw new Error('no_email')
-    profile = { providerId: u.sub, email: u.email.toLowerCase(), name: u.name || u.email.split('@')[0] }
+    profile = { providerId: u.sub, email: u.email.toLowerCase(), name: cleanText(u.name || u.email.split('@')[0]) }
   } else {
     const res = await fetch(
       `https://graph.facebook.com/me?fields=id,name,email&access_token=${encodeURIComponent(accessToken)}`,
@@ -167,14 +168,18 @@ export async function exchangeCodeForProfile(
     if (!res.ok) throw new Error(`userinfo failed (${res.status})`)
     const u = (await res.json()) as { id: string; email?: string; name?: string }
     if (!u.email) throw new Error('no_email') // FB omits email when unverified
-    profile = { providerId: u.id, email: u.email.toLowerCase(), name: u.name || u.email.split('@')[0] }
+    profile = { providerId: u.id, email: u.email.toLowerCase(), name: cleanText(u.name || u.email.split('@')[0]) }
   }
   return profile
 }
 
 // --- user resolution (login / link / register) --------------------------------
 
-export async function resolveOAuthUser(provider: string, providerId: string, email: string, name: string) {
+export async function resolveOAuthUser(provider: string, providerId: string, email: string, rawName: string) {
+  // Generated/provider display names are display-only text (30C): cleaned,
+  // grapheme-truncated, with a deterministic fallback when empty after
+  // cleaning. The email identity is untouched.
+  const name = truncateDisplay(cleanText(rawName) || 'Member', 60)
   // 1. returning social user
   const existing = await db.externalIdentity.findUnique({
     where: { provider_providerId: { provider, providerId } },

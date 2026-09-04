@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { computeTrust, requiredApprovalsFor, type TrustLevel } from '@/lib/trust'
+import { cleanMultiline, cleanText } from '@/lib/sanitize'
 import { existsSync } from 'fs'
 import path from 'path'
 import { uploadsDir } from '@/lib/uploads'
@@ -128,11 +129,13 @@ function text(v: unknown, field: string): string {
 }
 
 export function extractLabelValues(payload: SubmitPayload): LabelValues {
+  // 30C: normalize controls/bidi/zero-width BEFORE the existing length checks
+  // (which stay authoritative and unclipping — oversize is still an error).
   return {
-    name: text(payload.name, 'name').trim(),
-    brand: text(payload.brand, 'brand').trim(),
-    ingredients: text(payload.ingredients, 'ingredients').trim(),
-    servingSize: text(payload.servingSize, 'servingSize').trim() || null,
+    name: cleanText(text(payload.name, 'name')),
+    brand: cleanText(text(payload.brand, 'brand')),
+    ingredients: cleanMultiline(text(payload.ingredients, 'ingredients')),
+    servingSize: cleanText(text(payload.servingSize, 'servingSize')) || null,
     calories: parseNutritionValue(payload.calories, 'calories'),
     protein: parseNutritionValue(payload.protein, 'protein'),
     carbs: parseNutritionValue(payload.carbs, 'carbs'),
