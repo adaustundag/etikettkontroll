@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ProductThumb } from '@/components/ek/product-thumb'
 import { EmptyState } from '@/components/ek/empty-state'
 import { AppLink } from '@/components/ek/app-link'
+import { navigate } from '@/lib/router'
 import { api } from '@/lib/api'
 import { useLang } from '@/lib/i18n'
 import type { SearchResponseDTO } from '@/lib/types'
@@ -22,6 +23,7 @@ export function SearchView() {
   const [query, setQuery] = useState('')
   const [data, setData] = useState<SearchResponseDTO | null>(null)
   const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const readUrl = useCallback(() => {
@@ -32,14 +34,18 @@ export function SearchView() {
   const fetchResults = useCallback(async (q: string, page: number) => {
     if (!q.trim()) {
       setData(null)
+      setFailed(false)
       return
     }
     setLoading(true)
+    setFailed(false)
     try {
       const res = await api.get<SearchResponseDTO>(`/api/products?q=${encodeURIComponent(q)}&page=${page}&pageSize=20`)
       setData(res)
     } catch {
-      setData({ items: [], total: 0, page: 1, pageSize: 20, pageCount: 1 })
+      // EK-04: a network failure is NOT "no products found" — distinct state.
+      setData(null)
+      setFailed(true)
     } finally {
       setLoading(false)
     }
@@ -108,7 +114,22 @@ export function SearchView() {
         </Button>
       </form>
 
-      {!data && !loading && <p className="mt-8 text-sm text-muted-foreground">{t('search.intro')}</p>}
+      {!data && !loading && !failed && <p className="mt-8 text-sm text-muted-foreground">{t('search.intro')}</p>}
+
+      {failed && !loading && (
+        <div className="mt-8" role="alert">
+          <EmptyState
+            icon={<Search className="h-6 w-6" aria-hidden />}
+            title={t('search.failTitle')}
+            body={t('search.failBody')}
+            action={
+              <Button variant="outline" onClick={() => void fetchResults(query.trim(), 1)}>
+                {t('home.retry')}
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       {loading && (
         <div className="mt-8 space-y-2">
@@ -127,10 +148,17 @@ export function SearchView() {
             <div className="mt-6">
               <EmptyState
                 icon={<Search className="h-6 w-6" aria-hidden />}
-                title={t('search.noResultsTitle')}
+                title={t('search.noResultsTitle', { q: query.trim() })}
                 body={t('search.noResultsBody', { q: query.trim() })}
                 action={
-                  <Button className="bg-emerald-600 hover:bg-emerald-700" onClick={() => window.history.pushState(null, '', '/submit')}>
+                  <Button
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => {
+                      // EK-04: preserve the query into the contribution flow
+                      // (AppLink semantics via the app's own navigate()).
+                      navigate(`/submit?q=${encodeURIComponent(query.trim())}`)
+                    }}
+                  >
                     <Plus className="mr-1 h-4 w-4" aria-hidden />
                     {t('search.addCta')}
                   </Button>
@@ -152,7 +180,18 @@ export function SearchView() {
                         {p.brand} · <span className="font-mono">{p.barcode}</span>
                       </span>
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{t('search.versions', { count: p.approvedCount })}</span>
+                    {/* EK-02: evidence status instead of version counts */}
+                    <span className="shrink-0 text-xs">
+                      {p.verified ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                          ✓ {t('search.verifiedChip')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                          {t('search.importedChip')}
+                        </span>
+                      )}
+                    </span>
                   </AppLink>
                 </li>
               ))}

@@ -88,7 +88,21 @@ export function SubmitView({
 }) {
   const { t } = useLang()
   const [step, setStep] = useState(1)
-  const [form, setForm] = useState<FormState>({ ...emptyForm, barcode: barcodeParam })
+  // EK-04: /submit?q=<name-or-barcode> carries the failed search over. Barcodes
+  // seed the barcode field; names seed the product-name field. Never guess
+  // which one the string is — digits-only 8-14 chars is a barcode.
+  const initial = (() => {
+    if (barcodeParam) return { ...emptyForm, barcode: barcodeParam }
+    try {
+      const q = new URLSearchParams(window.location.search).get('q')?.trim() ?? ''
+      if (/^\d{8,14}$/.test(q)) return { ...emptyForm, barcode: q }
+      if (q) return { ...emptyForm, name: q }
+    } catch {
+      // non-browser context guard
+    }
+    return emptyForm
+  })()
+  const [form, setForm] = useState<FormState>(initial)
   const [existing, setExisting] = useState<ProductDetailDTO | null>(null)
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -208,7 +222,9 @@ export function SubmitView({
 
   // --- success screen ---
   if (step === 4 && result) {
-    const live = result.status === 'auto_approved'
+    // EK-02: every submission is pending review (no trust-level bypass since
+    // the T3 evidence-gate change) — one honest success path.
+    const live = false
     return (
       <div className="mx-auto w-full max-w-xl px-4 py-16">
         <EmptyState

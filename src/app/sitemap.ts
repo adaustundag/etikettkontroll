@@ -18,6 +18,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ]
   try {
     const products = await db.product.findMany({
+      // EK-01: quarantined records are not publicly discoverable.
+      where: { quarantined: false, currentRevisionId: { not: null } },
       select: { barcode: true, updatedAt: true },
       orderBy: { updatedAt: 'desc' },
       take: 5000,

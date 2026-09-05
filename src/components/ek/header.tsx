@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ScanBarcode, Plus, ClipboardCheck, Sun, Moon, LogOut, User as UserIcon, Menu } from 'lucide-react'
+import { ScanBarcode, Plus, Sun, Moon, LogOut, User as UserIcon, Menu } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -102,25 +102,16 @@ export function Header({
           </AppLink>
         </nav>
 
-        <div className="ml-auto flex items-center gap-1.5">
-          {/* mobile quick actions */}
-          <Button asChild variant="ghost" size="icon" className="relative md:hidden">
-            <AppLink href="/queue" aria-label={t('nav.queue')}>
-              <ClipboardCheck className="h-5 w-5" aria-hidden />
-              {pendingCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold text-white">
-                  {pendingCount}
-                </span>
-              )}
-            </AppLink>
-          </Button>
+        <div className="ml-auto flex items-center gap-1">
+          {/* EK-03: one priority action (add product) + language + menu at <md.
+              Review queue lives in the menu (badge there), not the crowded bar. */}
           <Button asChild variant="ghost" size="icon" className="md:hidden">
             <AppLink href="/submit" aria-label={t('nav.add')}>
               <Plus className="h-5 w-5" aria-hidden />
             </AppLink>
           </Button>
 
-          {/* language toggle — Swedish first (SE on the left) */}
+          {/* language toggle — Swedish first (SV = language code, not SE) */}
           <div
             className="flex items-center rounded-lg border bg-muted/50 p-0.5"
             role="group"
@@ -133,7 +124,7 @@ export function Header({
                 onClick={() => setLang(l)}
                 aria-pressed={lang === l}
                 className={cn(
-                  'rounded-md px-2.5 py-2 text-xs font-semibold uppercase transition-colors sm:px-3',
+                  'rounded-md px-2 py-2 text-xs font-semibold uppercase transition-colors sm:px-2.5',
                   lang === l ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -187,8 +178,9 @@ export function Header({
               <Button variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={() => onSignIn('signin')}>
                 {t('common.signIn')}
               </Button>
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => onSignIn('signup')}>
-                {t('common.signUp')}
+              {/* EK-03: icon-only sign-in below sm keeps the bar at 320px */}
+              <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => onSignIn('signin')} aria-label={t('common.signIn')}>
+                <UserIcon className="h-5 w-5" aria-hidden />
               </Button>
             </>
           )}
@@ -207,10 +199,10 @@ export function Header({
               <nav className="mt-2 flex flex-col gap-1 px-2" aria-label="Mobile">
                 {[
                   { href: '/', key: 'nav.home', active: route.view === 'home' },
+                  { href: '/sok', key: 'nav.search', active: route.view === 'search' },
                   { href: '/submit', key: 'nav.add', active: route.view === 'submit' },
                   { href: '/queue', key: 'nav.queue', active: route.view === 'queue' },
                   { href: '/andringar', key: 'nav.changes', active: route.view === 'changes' },
-                  { href: '/sok', key: 'nav.search', active: route.view === 'search' },
                 ].map(({ href, key, active }) => (
                   <AppLink
                     key={href}

@@ -4,7 +4,7 @@ import AppShellRoot from '@/components/ek/app-shell'
 import { parsePath } from '@/lib/route'
 import { siteUrl } from '@/lib/site'
 import { db } from '@/lib/db'
-import { getProductDetail } from '@/lib/product-detail'
+import { getProductAvailability, getProductDetail } from '@/lib/product-detail'
 import type { ProductDetailDTO } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -51,19 +51,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // keep raw
     }
     try {
-      const p = await db.product.findUnique({
-        where: { barcode },
-        select: { name: true, brand: true },
-      })
-      if (p) {
-        const title = `${p.name}${p.brand ? ` – ${p.brand}` : ''}`
-        const description = `Granskade uppgifter om ${p.name}: ingredienser, näringsvärden och alla ändringar av etiketten. Varje ändring kontrolleras av communityn innan den publiceras.`
-        const imgPath = `/api/og?barcode=${encodeURIComponent(barcode)}`
+      const availability = await getProductAvailability(barcode)
+      // EK-01: quarantined records are never indexed and never get their data
+      // in metadata — a noindex notice page only.
+      if (availability.state === 'quarantined') {
         return {
-          title,
-          description,
-          alternates: { canonical: base(`/product/${encodeURIComponent(barcode)}`) },
-          openGraph: og(title, description, `/product/${encodeURIComponent(barcode)}`, imgPath),
+          title: 'Posten är inte tillgänglig',
+          robots: { index: false, follow: false },
+        }
+      }
+      if (availability.state === 'available') {
+        const p = await db.product.findUnique({
+          where: { barcode },
+          select: { name: true, brand: true },
+        })
+        if (p) {
+          const title = `${p.name}${p.brand ? ` – ${p.brand}` : ''}`
+          const description = `Granskade uppgifter om ${p.name}: ingredienser, näringsvärden och alla ändringar av etiketten. Varje ändring kontrolleras av communityn innan den publiceras.`
+          const imgPath = `/api/og?barcode=${encodeURIComponent(barcode)}`
+          return {
+            title,
+            description,
+            alternates: { canonical: base(`/product/${encodeURIComponent(barcode)}`) },
+            openGraph: og(title, description, `/product/${encodeURIComponent(barcode)}`, imgPath),
+          }
         }
       }
       return { title: 'Produkten hittades inte', robots: { index: false, follow: true } }
@@ -76,7 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: 'Lägg till produkt',
       description:
-        'Fota etiketten, skriv av uppgifterna och bidra till den granskade databasen. L2-bidragsgivare publicerar direkt.',
+        'Fota etiketten, skriv av uppgifterna och bidra till den granskade databasen. Varje bidrag granskas av communityn innan det publiceras.',
       alternates: { canonical: base('/submit') },
       openGraph: og('Lägg till produkt', 'Fota etiketten, skriv av uppgifterna och bidra till den granskade databasen.', '/submit'),
     }
@@ -179,14 +190,29 @@ export default async function AppRoute({ params }: Props) {
   // Product pages are server-rendered with real content so crawlers and
   // no-JS visitors see the actual label data, not an empty shell.
   if (route.view === 'product' && route.param) {
+    let availability: Awaited<ReturnType<typeof getProductAvailability>> | null = null
+    try {
+      availability = await getProductAvailability(route.param)
+    } catch {
+      availability = null // cold boot / transient DB error — let the client fetch handle it
+    }
+    if (availability?.state === 'missing') notFound() // real 404 status for unknown barcodes
+    // EK-01: quarantined records get an honest notice page — never their
+    // label data, and never a silent 404 that hides the reason.
+    if (availability?.state === 'quarantined') {
+      return (
+        <AppShellRoot
+          initialRoute={route}
+          quarantineNotice={{ barcode: availability.barcode, name: availability.name, reason: availability.reason }}
+        />
+      )
+    }
     let detail: ProductDetailDTO | null = null
-    let dbReachable = true
     try {
       detail = await getProductDetail(route.param)
     } catch {
-      dbReachable = false // cold boot / transient DB error — let the client fetch handle it
+      detail = null
     }
-    if (dbReachable && !detail) notFound() // real 404 status for unknown barcodes
     return <AppShellRoot initialRoute={route} initialProduct={detail ?? undefined} />
   }
 

@@ -98,7 +98,9 @@ export function subscribe(onChange: Listener): () => void {
 export function navigate(path: string): void {
   if (typeof window === 'undefined') return
   const target = path.startsWith('/') ? path : `/${path.replace(/^\/+/, '')}`
-  if (window.location.pathname === target) {
+  // Query strings carry state (?q= for the submit wizard); compare full URLs.
+  const current = window.location.pathname + window.location.search
+  if (current === target) {
     window.scrollTo({ top: 0 })
     return
   }

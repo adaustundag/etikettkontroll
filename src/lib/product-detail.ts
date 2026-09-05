@@ -3,6 +3,40 @@ import { mapRevision, revisionInclude } from '@/lib/revisions'
 import type { ProductDetailDTO } from '@/lib/types'
 
 /**
+ * Public availability of a barcode (EK-01): quarantined records exist but are
+ * withheld from public view — the page and API must explain that instead of
+ * serving the record's data.
+ */
+export type ProductAvailability =
+  | { state: 'missing' }
+  | { state: 'available' }
+  | { state: 'quarantined'; barcode: string; name: string; reason: string | null }
+
+export async function getProductAvailability(barcode: string): Promise<ProductAvailability> {
+  const product = await db.product.findUnique({
+    where: { barcode },
+    select: { barcode: true, name: true, quarantined: true, currentRevisionId: true },
+  })
+  if (!product) return { state: 'missing' }
+  if (product.quarantined) {
+    const current = product.currentRevisionId
+      ? await db.productRevision.findUnique({
+          where: { id: product.currentRevisionId },
+          select: { sourceType: true },
+        })
+      : null
+    const sourceType = current?.sourceType ?? null
+    return {
+      state: 'quarantined',
+      barcode: product.barcode,
+      name: product.name,
+      reason: sourceType === 'demo' ? 'demo' : sourceType,
+    }
+  }
+  return { state: 'available' }
+}
+
+/**
  * Server-side product detail loader, shared by the REST route and the SSR
  * page render (so crawlers get the real content in the HTML, not an empty shell).
  * Returns null when no product has that barcode.

@@ -27,6 +27,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // Next.js rules
     "@next/next/no-img-element": "off",
     "@next/next/no-html-link-for-pages": "off",
+    // Node build scripts (scripts/*.cjs) legitimately use require()
+    "@typescript-eslint/no-require-imports": "off",
     
     // General JavaScript rules
     "prefer-const": "off",

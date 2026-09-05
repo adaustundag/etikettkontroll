@@ -130,17 +130,56 @@ function AppShell({ initialRoute, initialProduct }: { initialRoute: Route; initi
   )
 }
 
+export type QuarantineNotice = {
+  barcode: string
+  name: string
+  reason: string | null
+}
+
 export default function AppShellRoot({
   initialRoute,
   initialProduct,
+  quarantineNotice,
 }: {
   initialRoute: Route
   initialProduct?: ProductDetailDTO
+  quarantineNotice?: QuarantineNotice
 }) {
+  if (quarantineNotice) {
+    return (
+      <I18nProvider>
+        <PwaRegister />
+        <QuarantineView notice={quarantineNotice} />
+      </I18nProvider>
+    )
+  }
   return (
     <I18nProvider>
       <PwaRegister />
       <AppShell initialRoute={initialRoute} initialProduct={initialProduct} />
     </I18nProvider>
+  )
+}
+
+/** EK-01: honest notice for withheld records — no label data, reason shown. */
+function QuarantineView({ notice }: { notice: QuarantineNotice }) {
+  return (
+    <div className="mx-auto flex min-h-[60vh] w-full max-w-xl flex-col items-center justify-center px-4 py-16 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950">
+        <span aria-hidden className="text-xl">
+          ⚠️
+        </span>
+      </div>
+      <h1 className="mt-4 text-xl font-bold">Posten är inte tillgänglig</h1>
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        {notice.reason === 'demo'
+          ? 'Den här posten härstammar från testdata (demo) och visas inte som riktig produktinformation. Den finns kvar i arkivet men är inte offentlig.'
+          : 'Den här posten är tillfälligt borttagen från offentligheten i väntan på ursprungsgranskning.'}
+      </p>
+      <p className="mt-1 font-mono text-xs text-muted-foreground">{notice.barcode}</p>
+      <a href="/" className="mt-6 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700">
+        Till startsidan
+      </a>
+    </div>
   )
 }

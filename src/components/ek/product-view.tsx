@@ -377,9 +377,11 @@ export function ProductView({
                 {t('product.imported')}
               </span>
             ) : (
+              // Published without review-based verification (unknown legacy
+              // origin) — "not reviewed", not "no approved version".
               <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
                 <Clock className="h-4 w-4" aria-hidden />
-                {t('product.unverified')}
+                {t('product.notReviewed')}
               </span>
             )}
             {detail.pendingCount > 0 && (

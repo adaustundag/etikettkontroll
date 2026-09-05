@@ -119,7 +119,13 @@ export function SearchBox() {
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{item.name}</span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {item.brand} · {item.barcode}
+                          {item.brand} · <span className="font-mono">{item.barcode}</span>
+                          {/* EK-04/EK-02: evidence status, not version counts */}
+                          {item.verified ? (
+                            <span className="ml-1.5 inline-flex items-center gap-0.5 font-medium text-emerald-700 dark:text-emerald-400">✓ {t('search.verifiedChip')}</span>
+                          ) : (
+                            <span className="ml-1.5 text-amber-600 dark:text-amber-400">{t('search.importedChip')}</span>
+                          )}
                         </span>
                       </span>
                     </button>

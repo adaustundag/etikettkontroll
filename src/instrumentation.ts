@@ -62,6 +62,23 @@ export async function register() {
     console.error('[boot] probe cleanup failed:', err instanceof Error ? err.message : err)
   }
   try {
+    // EK-01: quarantine demo-derived records so they never appear as genuine
+    // public evidence. Idempotent (only flips the flag for not-yet-quarantined
+    // demo-sourced products); reversible (no deletes, flag-only). Set
+    // EK_QUARANTINE_DRY_RUN=1 to log the report without applying.
+    const { quarantineDemoRecords } = await import('@/lib/demo-quarantine')
+    const dryRun = process.env.EK_QUARANTINE_DRY_RUN === '1'
+    const s = await quarantineDemoRecords(!dryRun)
+    console.log(
+      `[boot] demo quarantine (dryRun=${s.dryRun}): scanned=${s.scanned} quarantined=${s.quarantined} alreadyQuarantined=${s.alreadyQuarantined}`,
+    )
+    for (const c of s.candidates) {
+      console.log(`[boot] demo quarantine: ${c.barcode} "${c.name}" — ${c.reason}${s.dryRun ? ' (dry run, not applied)' : ''}`)
+    }
+  } catch (err) {
+    console.error('[boot] demo quarantine failed:', err instanceof Error ? err.message : err)
+  }
+  try {
     const { ensureSearchIndex } = await import('@/lib/search')
     const enabled = await ensureSearchIndex()
     if (enabled) console.log('[boot] product search index ready (FTS5 trigram)')
