@@ -214,10 +214,21 @@ async function fuzzySearch(tokens: string[], page: number, pageSize: number): Pr
     const docs: { pid: string; norm: string; updatedAt: string }[] = []
     const conn = getSqlite()
     if (conn && (await ensureSearchIndex())) {
-      const rows = conn.prepare(`SELECT f.pid AS pid, f.norm AS norm, p."updatedAt" AS updatedAt FROM ${FTS_TABLE} f JOIN Product p ON p.id = f.pid`).all() as Array<{ pid: string; norm: string; updatedAt: string }>
+      // EK-01: same public-visibility contract as the strict path — only
+      // published, non-quarantined records may be recovered by fuzzy search.
+      const rows = conn
+        .prepare(
+          `SELECT f.pid AS pid, f.norm AS norm, p."updatedAt" AS updatedAt FROM ${FTS_TABLE} f
+           JOIN Product p ON p.id = f.pid
+           WHERE p."currentRevisionId" IS NOT NULL AND p."quarantined" = 0`,
+        )
+        .all() as Array<{ pid: string; norm: string; updatedAt: string }>
       docs.push(...rows)
     } else {
-      const rows = await db.product.findMany({ select: { id: true, name: true, brand: true, barcode: true, updatedAt: true } })
+      const rows = await db.product.findMany({
+        where: { currentRevisionId: { not: null }, quarantined: false },
+        select: { id: true, name: true, brand: true, barcode: true, updatedAt: true },
+      })
       for (const r of rows) {
         docs.push({ pid: r.id, norm: normalizeForSearch(`${r.name} ${r.brand} ${r.barcode}`), updatedAt: r.updatedAt.toISOString() })
       }
