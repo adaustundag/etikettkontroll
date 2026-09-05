@@ -621,3 +621,40 @@ Work Log:
 
 Stage Summary:
 - Dead template proxy removed from the repo; production serving path confirmed Caddy-free. origin/main = HEAD.
+
+---
+Task ID: 32 (EK-01..EK-04 launch deliverables)
+Agent: opencode (GLM-5.3-Flash, local)
+Task: Four launch deliverables — EK-01 quarantine demo data / resolve provenance; EK-02 unify the trust contract; EK-03 mobile navigation fit; EK-04 search recovery + result context.
+
+EK-01 — Demo quarantine (real numbers):
+- AUDIT: the 7 demo seed barcodes (7310070100702 Kalles, 6408430108909 Oatly, 7300400177702 Wasa, 7310500123400 Marabou, 7310865004703 Garant, 6405210004406 Arla, 7311311001109 Felix) + Lindahls 7392672001403 all existed in production as public products. Provenance had already been stamped by the launch backfill: every current publication of these 8 carried sourceType=demo (submitted by @etikettkontroll.se demo identities — classification is email/provenance-based, never name-based). Changes feed and stats already excluded demo identities (0 events, 0 contributors).
+- MECHANISM: src/lib/demo-quarantine.ts — idempotent, reversible, dry-run capable. Rule: quarantine a product iff its CANONICAL CURRENT PUBLICATION is sourceType=demo (mixed records with demo history but human/imported current publication stay public; nothing publicly visible claims demo data). Only sets Product.quarantined, never deletes or un-quarantines, scans only non-quarantined rows so re-runs change nothing. Wired into instrumentation boot; EK_QUARANTINE_DRY_RUN=1 logs candidates without applying.
+- APPLIED (deploy bdb35aa): stats products 355 → 347 (8 quarantined). All other counts unchanged (0 contributors/0 changes — demo was already excluded there).
+- SURFACES: detail API returns 410 Gone {error, quarantined, barcode, name}; product page renders a bilingual notice ("Posten är inte tillgänglig" + demo-origin explanation + barcode) with noindex and NO label data in HTML; sitemap excludes quarantined+unpublished; search (FTS strict path, LIKE fallback AND the fuzzy-recovery path — this one had a leak, fixed in 6a1d664) all filter quarantined; changes feed + stats already did.
+- VERIFIED IN PRODUCTION: all 8 barcodes → search hits=0, page=notice, API=410; Marabou absent from sitemap.xml; genuine products unaffected (kvarg=9 hits); stats=347; notices show demo-origin reason; label data absent from notice HTML.
+
+EK-02 — Trust contract unification (copy):
+- Ground truth verified in code: every submission is created pending (revisions.ts:316) and verification requires evidence + independent human review (evidence gate, T3). All "publishes instantly" claims were stale.
+- Fixed in EN+SV: how.l0–l3 + trust.explain0–3 (levels now describe review scope, no instant publish), submit.trustNoteContributor/Trusted (pending flow), submit metadata ("L2-bidragsgivare publicerar direkt" removed), home.subtitle (now says published changes are evidence-checked AND imported records are labeled unverified), home.trustLine ("{products} catalog products · {contributors} human contributors · {changes} review-verified changes"), search.intro (no longer calls the whole database "reviewed"), product.unverified for unknown-legacy records is now "Not reviewed"/"Ej granskad" instead of the misleading "No approved version yet", README review-workflow line corrected.
+- Status labels kept separate from verification: history badges still show auto_approved/superseded (what happened); the current-publication badge uses verificationState (verified / imported-unreviewed / not-reviewed).
+- VERIFIED: imported product journey — search shows source=openfoodfacts verified=false → product page shows the imported/unreviewed badge + raw-data disclosure → verification guide page loads; quarantined product journey — search 0 hits → notice page explains demo origin.
+
+EK-03 — Mobile navigation:
+- Header mobile row restructured (<md): brand → [+ add product] → [SV/EN toggle compacted px-2] → [avatar or icon-only sign-in] → [menu]. Removed the queue icon button from the bar (contributor admin — lives in the menu with the pending badge, badge preserved on the drawer queue link). Sign-up button removed from the bar (icon-only sign-in below sm; full sign in/up in the dialog as before). Desktop (>md) unchanged.
+- Width math at 320px (worst case, logged out): 288px usable; row = brand 48 + plus 36 + lang 76 + user-icon 36 + menu 36 + gaps 20 = 252px ≤ 288px. Logged-in 248px. No horizontal overflow from the header at 320/360/375/390/430px.
+- HONEST LIMIT: no browser/device automation in this environment — the overflow math is computed from the actual Tailwind sizes and the audit's own 399px@390px measurement is explained by the removed queue icon + long sign-up button; one manual device pass is still recommended (touch targets h-9→36px are unchanged from before, below the 44px ideal).
+
+EK-04 — Search recovery + result context:
+- FIXED the visible {q} defect: search-view called t('search.noResultsTitle') without vars → literal 'Inget matchar "{q}"' rendered. Now passes {q}.
+- FAILURE STATE: network errors previously rendered as "0 hits / no products found" (empty-state lie). New distinct failed state ("Search failed / Sökningen misslyckades") with a retry button that re-runs the kept query.
+- RESULT IDENTITY: results show name, brand, mono barcode, thumbnail (existing) PLUS an evidence-status chip from EK-02 vocabulary: "Granskad"/"Reviewed" (verified) vs "Importerad · ogranskad"/"Imported · unreviewed" — replacing the old "{count} versioner" version-count emphasis.
+- EMPTY RESULTS: copy now says no matching record was found and does NOT claim the product doesn't exist; CTA preserves the query — /submit?q=<query> seeds the wizard (barcodes 8–14 digits seed the barcode field; names seed the product-name field; never guessed). navigate() now compares pathname+search so query URLs work.
+- VERIFIED: representative searches on production — known barcode (quarantined → 0 hits), kvarg (9 hits, evidence fields in API), Swedish chars (Mjölk-type queries via /sok 200), whitespace-padded query 200, unmatched query → empty shape 200, degenerate '%%%' → empty shape 200. Client-only bits (chip rendering, {q} interpolation in the empty state, wizard prefill) are code-verified; rendering itself needs the same manual browser pass as EK-03.
+
+Also: package.json build replaced with scripts/build.cjs + scripts/copy-standalone.cjs — the shell && composite silently failed under bun's Windows shell ("unknown error", intermittent-invisible); the Node orchestrator is deterministic on all platforms.
+
+Verification (all real runs, final): 185 tests / 597 expects passing (isolated runner), eslint clean, tsc clean, production build green, deployed to production (6a1d664) with the probes above.
+
+Stage Summary:
+- No demo-derived record appears as genuine public evidence anywhere: 8 records quarantined (flag-only, reversible), hidden from search/sitemap/stats/feeds, direct URLs explain why. Trust copy matches deployed behavior on every surface. Search states are honest (failure ≠ empty), results carry evidence status, and failed searches hand the query to the contribution flow. Mobile header fits 320px. origin/main = HEAD.
